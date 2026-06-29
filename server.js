@@ -1,6 +1,8 @@
-// server.js — truri i projektit "studim-tregu"
-// Pret pyetjen nga faqja, thwrret OpenAI-n (me kerkim ne internet),
-// e ruan pergjigjen ne PostgreSQL, dhe ta kthen ne faqe.
+// server.js — projekti "studim-tregu"
+// Dy deget: TE GJITHA mwnyrat e fitimit dhe TE GJITHA metodat e marketingut.
+// "Gjenero" dhe "Ruaj" jane DY hapa te ndare: ruhet vetem ajo qe lejon ti.
+// Cdo opsion ruhet si NJESI me vete (rresht), qe te aksesohet individualisht
+// me vone per kombinim.
  
 const express = require('express');
 const path = require('path');
@@ -10,123 +12,115 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
  
-// ⚠️ KONFIRMO emrin e modelit te dashboard-i i OpenAI nese te del gabim modeli.
-// gpt-5.5 ben kerkim ne internet permes Responses API.
+// ⚠️ Konfirmo emrin e modelit te dashboard-i i OpenAI nese del gabim modeli.
 const MODEL = 'gpt-5.5';
  
-const openai = new OpenAI(); // lexon OPENAI_API_KEY nga environment
+const openai = new OpenAI();
  
-// Databaza: nese DATABASE_URL mungon, app-i prap punon, por s'i ruan pergjigjet.
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL })
   : null;
  
 if (pool) {
   pool.query(`
-    CREATE TABLE IF NOT EXISTS studime (
-      id          SERIAL PRIMARY KEY,
-      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-      context     TEXT NOT NULL,
-      search_used BOOLEAN NOT NULL,
-      raw_answer  TEXT,
-      parsed      JSONB,
-      error       TEXT
+    CREATE TABLE IF NOT EXISTS metodat (
+      id         SERIAL PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      lloji      TEXT NOT NULL,        -- 'fitim' ose 'marketing'
+      emri       TEXT NOT NULL,
+      kategoria  TEXT,
+      pershkrim  TEXT
     );
-  `).then(() => console.log('Tabela "studime" gati.'))
+  `).then(() => console.log('Tabela "metodat" gati.'))
     .catch(e => console.error('Krijimi i tabeles deshtoi:', e.message));
 } else {
-  console.warn('Kujdes: DATABASE_URL mungon — pergjigjet nuk do ruhen.');
+  console.warn('Kujdes: DATABASE_URL mungon — s\'ruhet dot.');
 }
  
-const SYSTEM_PROMPT = `You are a rigorous market research analyst.
+// Prompt-et — TE GJITHA mundesite, ne pergjithesi, pa asnje kusht
+function methodPrompt(lloji) {
+  if (lloji === 'fitim') {
+    return `List ALL monetization / revenue / payment models that exist for businesses and products IN GENERAL — across software, physical goods, services, content, media, marketplaces, etc.
+Be EXHAUSTIVE and organized by category. Do NOT restrict to any specific business type, budget, geography, or constraint — list every model that exists. Use web_search so nothing modern is missing.
+Output ONLY a JSON array (no markdown, no text around it). Each item:
+{"name":"common English name","kategoria":"category","pershkrim":"one short line in Albanian"}`;
+  }
+  return `List ALL marketing / distribution / advertising / customer-acquisition strategies that exist IN GENERAL — across every channel and every type of business.
+Be EXHAUSTIVE and organized by category. Do NOT restrict to any specific business, budget, geography, or constraint — list every strategy that exists. Use web_search so nothing modern is missing.
+Output ONLY a JSON array (no markdown, no text around it). Each item:
+{"name":"common English name","kategoria":"category","pershkrim":"one short line in Albanian"}`;
+}
  
-HARD RULES:
-- Base every factual claim on current evidence you find with the web_search tool. If web search is unavailable or you cannot find evidence, explicitly mark that claim as "no evidence".
-- Do NOT give generic startup advice, platitudes, or training-data boilerplate. Generic answers are a failure of this task.
-- Cite a source URL for every market-size, demand, or saturation claim.
- 
-OBJECTIVE (read carefully):
-The user does NOT want speed to launch or speed to first revenue. The user wants the HIGHEST SUSTAINED REVENUE RATE once the business is mature — a high ceiling and high revenue velocity at scale — even if the path to maturity is long. Do NOT penalize long build time or long ramp time. The ONE constraint is the user's runway: they must survive financially during the ramp, so weigh "ramp survivability given budget".
-A business with a compounding growth engine (network effects, virality, marketplace dynamics) is strongly preferred, because that is what turns a model into a millions-per-month business.
- 
-TASK:
-Compare these business model categories for this specific user: SaaS, Shopify/marketplace app, physical product / e-commerce, information product, service/agency. You may add a category if evidence supports it.
-For each, research and score 1-5 on:
-  ceiling, velocity, growth_engine, saturation (1=brutally saturated, 5=wide open), fit, survivability.
-Then rank the categories and pick ONE top category, with evidence-based reasoning.
- 
-OUTPUT:
-Respond with ONLY valid JSON — no markdown fences, no text before or after.
-Write all human-readable text fields in Albanian. Use exactly this shape:
-{
-  "summary": "2-3 sentence verdict in Albanian",
-  "top_pick": "category name",
-  "categories": [
-    {"name":"","scores":{"ceiling":0,"velocity":0,"growth_engine":0,"saturation":0,"fit":0,"survivability":0},"rationale":"Albanian, with concrete evidence","sources":["https://..."]}
-  ]
-}`;
- 
-function extractJson(text) {
+function extractJsonArray(text) {
   if (!text) throw new Error('Output bosh');
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('Nuk u gjet JSON');
-  return JSON.parse(text.slice(start, end + 1));
+  const s = text.indexOf('['), e = text.lastIndexOf(']');
+  if (s === -1 || e === -1) throw new Error('Nuk u gjet liste JSON');
+  return JSON.parse(text.slice(s, e + 1));
 }
  
-app.use(express.json({ limit: '1mb' }));
- 
+app.use(express.json({ limit: '2mb' }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
  
-app.post('/run', async (req, res) => {
-  const context = ((req.body && req.body.context) || '').trim();
-  const useSearch = !(req.body && req.body.useSearch === false);
-  if (!context) return res.status(400).json({ error: 'Konteksti mungon.' });
- 
-  let raw = null, parsed = null, errMsg = null;
+// HAPI 1 — vetem GJENERO (pa ruajtur). Kthen listen qe ta shohesh.
+app.post('/gjenero/:lloji', async (req, res) => {
+  const lloji = req.params.lloji;
+  if (lloji !== 'fitim' && lloji !== 'marketing') return res.status(400).json({ error: 'Lloj i panjohur.' });
+  let raw = null, list = null, errMsg = null;
   try {
-    const response = await openai.responses.create({
+    const r = await openai.responses.create({
       model: MODEL,
-      tools: useSearch ? [{ type: 'web_search' }] : [],
-      input: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: context }
-      ]
+      tools: [{ type: 'web_search' }],
+      input: [{ role: 'user', content: methodPrompt(lloji) }]
     });
-    raw = response.output_text;
-    try { parsed = extractJson(raw); }
-    catch (e) { errMsg = "Outputi s'ishte JSON: " + e.message; }
-  } catch (e) {
-    errMsg = 'Thirrja e OpenAI deshtoi: ' + e.message;
-  }
- 
-  if (pool) {
-    try {
-      await pool.query(
-        `INSERT INTO studime (context, search_used, raw_answer, parsed, error)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [context, useSearch, raw, parsed ? JSON.stringify(parsed) : null, errMsg]
-      );
-    } catch (e) {
-      console.error('Ruajtja deshtoi:', e.message);
-      errMsg = (errMsg ? errMsg + ' | ' : '') + 'Ruajtja ne DB deshtoi.';
-    }
-  }
- 
-  return res.json({ parsed, raw, error: errMsg });
+    raw = r.output_text;
+    list = extractJsonArray(raw);
+  } catch (e) { errMsg = 'Deshtoi: ' + e.message; }
+  res.json({ lloji, list, raw, error: errMsg });
 });
  
-app.get('/history', async (req, res) => {
+// HAPI 2 — RUAJ vetem ate qe lejon ti (lista vjen nga faqja kur klikon butonin).
+// Cdo opsion ruhet si rresht me vete. "replace=true" pastron te vjetrat e atij lloji.
+app.post('/ruaj/:lloji', async (req, res) => {
+  const lloji = req.params.lloji;
+  if (lloji !== 'fitim' && lloji !== 'marketing') return res.status(400).json({ error: 'Lloj i panjohur.' });
+  if (!pool) return res.status(500).json({ error: "DATABASE_URL mungon — s'ruhet dot." });
+ 
+  const list = (req.body && req.body.list) || [];
+  const replace = !!(req.body && req.body.replace);
+  if (!Array.isArray(list) || !list.length) return res.status(400).json({ error: 'Asgjë për të ruajtur.' });
+ 
+  try {
+    if (replace) await pool.query('DELETE FROM metodat WHERE lloji=$1', [lloji]);
+    let n = 0;
+    for (const m of list) {
+      await pool.query(
+        'INSERT INTO metodat (lloji, emri, kategoria, pershkrim) VALUES ($1,$2,$3,$4)',
+        [lloji, String(m.name || m.emri || '').slice(0, 300), String(m.kategoria || '').slice(0, 200), String(m.pershkrim || '').slice(0, 1000)]
+      );
+      n++;
+    }
+    res.json({ ruajtur: n });
+  } catch (e) {
+    res.status(500).json({ error: 'Ruajtja deshtoi: ' + e.message });
+  }
+});
+ 
+// Lexo metodat e ruajtura (secila e aksesueshme me vete per kombinim te ardhshem)
+app.get('/metodat', async (req, res) => {
   if (!pool) return res.json([]);
   try {
-    const r = await pool.query(
-      `SELECT id, created_at, search_used, parsed->>'top_pick' AS top_pick
-       FROM studime ORDER BY created_at DESC LIMIT 20`
-    );
+    const r = await pool.query('SELECT id, lloji, emri, kategoria, pershkrim FROM metodat ORDER BY lloji, kategoria, emri');
     res.json(r.rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+ 
+// (Opsionale) Fshi nje opsion te vetem te ruajtur, sipas id-se
+app.post('/fshi/:id', async (req, res) => {
+  if (!pool) return res.status(500).json({ error: 'S\'ka databaz.' });
+  try {
+    await pool.query('DELETE FROM metodat WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
  
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
