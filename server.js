@@ -1,11 +1,11 @@
 // server.js — projekti "studim-tregu"
-// Dy deget: TE GJITHA mwnyrat e fitimit dhe TE GJITHA metodat e marketingut.
-// "Gjenero" dhe "Ruaj" jane DY hapa te ndare: ruhet vetem ajo qe lejon ti.
-// Cdo opsion ruhet si NJESI me vete (rresht), qe te aksesohet individualisht
-// me vone per kombinim.
+// Gjeneron TE GJITHA mwnyrat e fitimit / strategjite e marketingut (me kerkim ne internet),
+// e bwn nw SFOND qw te mos e presw Railway, e RUAN automatikisht te plote kur mbaron,
+// dhe faqja e merr pastaj. Fshirja prek vetem te njejtin lloj.
  
 const express = require('express');
 const path = require('path');
+const crypto = require('crypto');
 const OpenAI = require('openai');
 const { Pool } = require('pg');
  
@@ -37,7 +37,9 @@ if (pool) {
   console.warn('Kujdes: DATABASE_URL mungon — s\'ruhet dot.');
 }
  
-// Prompt-et — TE GJITHA mundesite, ne pergjithesi, pa asnje kusht
+// Kujtesa e perkohshme e "puneve" ne sfond (job-eve)
+const jobs = {}; // id -> { status:'po_punon'|'gati'|'gabim', lloji, list, error }
+ 
 function methodPrompt(lloji) {
   if (lloji === 'fitim') {
     return `List ALL monetization / revenue / payment models that exist for businesses and products IN GENERAL — across software, physical goods, services, content, media, marketplaces, etc.
@@ -58,54 +60,53 @@ function extractJsonArray(text) {
   return JSON.parse(text.slice(s, e + 1));
 }
  
-app.use(express.json({ limit: '2mb' }));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
- 
-// HAPI 1 — vetem GJENERO (pa ruajtur). Kthen listen qe ta shohesh.
-app.post('/gjenero/:lloji', async (req, res) => {
-  const lloji = req.params.lloji;
-  if (lloji !== 'fitim' && lloji !== 'marketing') return res.status(400).json({ error: 'Lloj i panjohur.' });
-  let raw = null, list = null, errMsg = null;
+// Puna ne sfond: kerko -> ruaj te plote -> shenoje 'gati'
+async function bejPunen(id, lloji) {
   try {
     const r = await openai.responses.create({
       model: MODEL,
-      tools: [{ type: 'web_search' }],
+      tools: [{ type: 'web_search' }],   // kerkimi ne internet i ndezur
       input: [{ role: 'user', content: methodPrompt(lloji) }]
     });
-    raw = r.output_text;
-    list = extractJsonArray(raw);
-  } catch (e) { errMsg = 'Deshtoi: ' + e.message; }
-  res.json({ lloji, list, raw, error: errMsg });
-});
+    const list = extractJsonArray(r.output_text);
  
-// HAPI 2 — RUAJ vetem ate qe lejon ti (lista vjen nga faqja kur klikon butonin).
-// Cdo opsion ruhet si rresht me vete. "replace=true" pastron te vjetrat e atij lloji.
-app.post('/ruaj/:lloji', async (req, res) => {
+    if (pool && Array.isArray(list)) {
+      // fshi vetem te njejtin lloj, pastaj ruaj te renat
+      await pool.query('DELETE FROM metodat WHERE lloji=$1', [lloji]);
+      for (const m of list) {
+        await pool.query(
+          'INSERT INTO metodat (lloji, emri, kategoria, pershkrim) VALUES ($1,$2,$3,$4)',
+          [lloji, String(m.name || '').slice(0, 300), String(m.kategoria || '').slice(0, 200), String(m.pershkrim || '').slice(0, 1000)]
+        );
+      }
+    }
+    jobs[id] = { status: 'gati', lloji, list };
+  } catch (e) {
+    jobs[id] = { status: 'gabim', lloji, error: e.message };
+  }
+}
+ 
+app.use(express.json({ limit: '2mb' }));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+ 
+// NIS punen ne sfond, kthe menjehere nje id (Railway s'pret gjate)
+app.post('/nis/:lloji', (req, res) => {
   const lloji = req.params.lloji;
   if (lloji !== 'fitim' && lloji !== 'marketing') return res.status(400).json({ error: 'Lloj i panjohur.' });
-  if (!pool) return res.status(500).json({ error: "DATABASE_URL mungon — s'ruhet dot." });
- 
-  const list = (req.body && req.body.list) || [];
-  const replace = !!(req.body && req.body.replace);
-  if (!Array.isArray(list) || !list.length) return res.status(400).json({ error: 'Asgjë për të ruajtur.' });
- 
-  try {
-    if (replace) await pool.query('DELETE FROM metodat WHERE lloji=$1', [lloji]);
-    let n = 0;
-    for (const m of list) {
-      await pool.query(
-        'INSERT INTO metodat (lloji, emri, kategoria, pershkrim) VALUES ($1,$2,$3,$4)',
-        [lloji, String(m.name || m.emri || '').slice(0, 300), String(m.kategoria || '').slice(0, 200), String(m.pershkrim || '').slice(0, 1000)]
-      );
-      n++;
-    }
-    res.json({ ruajtur: n });
-  } catch (e) {
-    res.status(500).json({ error: 'Ruajtja deshtoi: ' + e.message });
-  }
+  const id = crypto.randomUUID();
+  jobs[id] = { status: 'po_punon', lloji };
+  bejPunen(id, lloji); // nuk e presim — punon ne sfond
+  res.json({ id });
 });
  
-// Lexo metodat e ruajtura (secila e aksesueshme me vete per kombinim te ardhshem)
+// KONTROLLO statusin e nje pune
+app.get('/status/:id', (req, res) => {
+  const j = jobs[req.params.id];
+  if (!j) return res.json({ status: 'pa_gjetur' });
+  res.json(j);
+});
+ 
+// Lexo metodat e ruajtura (secila e aksesueshme me vete)
 app.get('/metodat', async (req, res) => {
   if (!pool) return res.json([]);
   try {
@@ -114,7 +115,7 @@ app.get('/metodat', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
  
-// (Opsionale) Fshi nje opsion te vetem te ruajtur, sipas id-se
+// Fshi nje opsion te vetem te ruajtur
 app.post('/fshi/:id', async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'S\'ka databaz.' });
   try {
