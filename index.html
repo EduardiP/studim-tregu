@@ -33,7 +33,7 @@
 <body>
 <div class="wrap">
   <h1>Mënyrat e fitimit & strategjitë e marketingut</h1>
-  <p class="sub">Klikon "Gjenero", AI kërkon në internet në sfond (mund të zgjasë disa minuta — s'prishet edhe nëse mbyll faqen), ruan automatikisht gjithçka, dhe ta sjell këtu kur mbaron.</p>
+  <p class="sub">Klikon "Gjenero", AI gjen kategoritë, kërkon në internet kategori-kategori në sfond, ruan automatikisht gjithçka, dhe ta sjell këtu kur mbaron. S'prishet edhe nëse mbyll faqen.</p>
 
   <div class="card">
     <div class="row">
@@ -56,25 +56,26 @@
   const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   let timer = null;
 
-  function groupByKat(list, key='kategoria') {
+  function groupByKat(list) {
     const g = {};
-    for (const m of list) { const k = m[key] || 'Tjetër'; (g[k]=g[k]||[]).push(m); }
+    for (const m of list) { const k = (m.kategoria||m.emri && m.kategoria) || 'Tjetër'; (g[k]=g[k]||[]).push(m); }
     return g;
   }
 
-  async function generate(lloji, btnId) {
+  async function generate(lloji) {
     if (timer) { clearInterval(timer); timer = null; }
     $('genFitim').disabled = true; $('genMkt').disabled = true;
     const emri = lloji==='fitim' ? 'mënyrat e fitimit' : 'strategjitë e marketingut';
-    $('status').innerHTML = `<span class="spin"></span>E nisa kërkimin për ${emri}. Po punon në sfond…`;
+    $('status').innerHTML = `<span class="spin"></span>E nisa për ${emri}. Po punon në sfond…`;
     try {
       const { id, error } = await (await fetch('/nis/'+lloji, {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
       if (error || !id) throw new Error(error || 'S\'u nis dot.');
-      // pyet çdo 3 sekonda a mbaroi
       timer = setInterval(async () => {
         try {
           const j = await (await fetch('/status/'+id)).json();
-          if (j.status === 'gati') {
+          if (j.status === 'po_punon') {
+            $('status').innerHTML = `<span class="spin"></span>Po punon për ${emri}… ${esc(j.progres||'')}`;
+          } else if (j.status === 'gati') {
             clearInterval(timer); timer = null;
             $('status').innerHTML = `<span class="ok">U gjeneruan & u ruajtën ${ (j.list||[]).length } opsione për ${emri} ✓</span>`;
             $('genFitim').disabled = false; $('genMkt').disabled = false;
@@ -85,11 +86,10 @@
             $('genFitim').disabled = false; $('genMkt').disabled = false;
           } else if (j.status === 'pa_gjetur') {
             clearInterval(timer); timer = null;
-            $('status').innerHTML = `<span class="err">Puna humbi (ndoshta serveri u rindërtua). Provo sërish.</span>`;
+            $('status').innerHTML = `<span class="err">Puna humbi (serveri u rindërtua). Provo sërish.</span>`;
             $('genFitim').disabled = false; $('genMkt').disabled = false;
           }
-          // ndryshe: ende 'po_punon' — vazhdojmë të presim
-        } catch (e) { /* pa probleme, provojmë përsëri në ciklin tjetër */ }
+        } catch (e) { /* provojmë në ciklin tjetër */ }
       }, 3000);
     } catch (e) {
       $('status').innerHTML = `<span class="err">Gabim: ${esc(e.message)}</span>`;
