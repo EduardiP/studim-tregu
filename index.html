@@ -15,40 +15,33 @@
   .row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:6px 0; }
   button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
   button.alt { background:var(--p); }
-  button.save { background:var(--good); }
-  button.ghost { background:transparent; color:var(--mut); border:1px solid var(--line); }
   button:disabled { opacity:.5; cursor:default; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0; }
   .small { font-size:13px; color:var(--mut); }
   .kat { color:var(--p); font-weight:600; margin:12px 0 4px; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
   .m { display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-bottom:1px solid #20242e; }
-  .m input { margin-top:5px; }
   .m .txt b { color:var(--txt); }
   .err { color:#ff9a9a; }
-  pre { white-space:pre-wrap; word-break:break-word; font:12px/1.5 ui-monospace,monospace; color:var(--mut);
-        background:#0b0d12; border:1px solid var(--line); border-radius:8px; padding:12px; max-height:300px; overflow:auto; }
-  details { margin-top:8px; } summary { cursor:pointer; color:var(--mut); font-size:14px; }
-  .spin { display:inline-block; width:14px; height:14px; border:2px solid #06122b; border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
-  @keyframes s { to { transform:rotate(360deg); } }
-  .pill { display:inline-block; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 10px; font-size:12px; color:var(--mut); margin-left:8px; }
+  .ok { color:var(--good); }
   .link { color:var(--acc); cursor:pointer; font-size:13px; }
   .delx { color:#ff9a9a; cursor:pointer; font-size:12px; margin-left:auto; }
+  .pill { display:inline-block; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 10px; font-size:12px; color:var(--mut); margin-left:8px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Mënyrat e fitimit & strategjitë e marketingut</h1>
-  <p class="sub">Gjenero listën e plotë, shqyrto, dhe ruaj në databazë vetëm ato që lejon ti. Çdo opsion ruhet veçmas, gati për t'u kombinuar më vonë.</p>
+  <p class="sub">Klikon "Gjenero", AI kërkon në internet në sfond (mund të zgjasë disa minuta — s'prishet edhe nëse mbyll faqen), ruan automatikisht gjithçka, dhe ta sjell këtu kur mbaron.</p>
 
   <div class="card">
     <div class="row">
       <button id="genFitim">Gjenero mënyrat e fitimit</button>
       <button id="genMkt" class="alt">Gjenero strategjitë e marketingut</button>
-      <span id="status" class="small"></span>
     </div>
+    <div id="status" class="small" style="margin-top:10px;"></div>
   </div>
-
-  <div id="genCard"></div>
 
   <div class="card">
     <div class="row" style="justify-content:space-between">
@@ -61,73 +54,47 @@
 <script>
   const $ = id => document.getElementById(id);
   const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  let current = { lloji:null, list:[] };
+  let timer = null;
 
-  function groupByKat(list) {
+  function groupByKat(list, key='kategoria') {
     const g = {};
-    for (let i=0;i<list.length;i++){ const m=list[i]; const k=m.kategoria||'Tjetër'; (g[k]=g[k]||[]).push({m,i}); }
+    for (const m of list) { const k = m[key] || 'Tjetër'; (g[k]=g[k]||[]).push(m); }
     return g;
   }
 
-  function renderGenerated(d) {
-    const c = $('genCard');
-    if (d.error && !(d.list||[]).length) {
-      c.innerHTML = `<div class="card err">Gabim: ${esc(d.error)}</div>` + (d.raw?`<details open><summary>raw</summary><pre>${esc(d.raw)}</pre></details>`:'');
-      return;
-    }
-    current = { lloji:d.lloji, list:d.list||[] };
-    const titulli = d.lloji==='fitim' ? 'Mënyrat e fitimit' : 'Strategjitë e marketingut';
-    let html = `<div class="card"><div class="row" style="justify-content:space-between">
-        <h2 style="margin:0">${titulli} <span class="pill">${current.list.length} opsione</span></h2>
-        <span><span class="link" id="all">zgjidh të gjitha</span> · <span class="link" id="none">hiq të gjitha</span></span>
-      </div>`;
-    if (d.error) html += `<div class="small err" style="margin:6px 0">${esc(d.error)}</div>`;
-    const g = groupByKat(current.list);
-    for (const k of Object.keys(g)) {
-      html += `<div class="kat">${esc(k)}</div>`;
-      for (const {m,i} of g[k]) {
-        html += `<label class="m"><input type="checkbox" class="chk" data-i="${i}" checked>
-          <span class="txt"><b>${esc(m.name||m.emri)}</b> — ${esc(m.pershkrim)}</span></label>`;
-      }
-    }
-    html += `<div class="row" style="margin-top:14px">
-        <button class="save" id="saveSel">Ruaj të zgjedhurat në databazë</button>
-        <label class="small"><input type="checkbox" id="replace" checked> zëvendëso të vjetrat e ${d.lloji==='fitim'?'fitimit':'marketingut'}</label>
-        <span id="saveStatus" class="small"></span>
-      </div></div>`;
-    html += `<details><summary>Outputi raw</summary><pre>${esc(d.raw)}</pre></details>`;
-    c.innerHTML = html;
-
-    $('all').onclick  = () => c.querySelectorAll('.chk').forEach(x=>x.checked=true);
-    $('none').onclick = () => c.querySelectorAll('.chk').forEach(x=>x.checked=false);
-    $('saveSel').onclick = saveSelected;
-  }
-
-  async function generate(lloji) {
+  async function generate(lloji, btnId) {
+    if (timer) { clearInterval(timer); timer = null; }
     $('genFitim').disabled = true; $('genMkt').disabled = true;
-    $('status').innerHTML = '<span class="spin"></span>Po kërkon të gjitha opsionet…';
-    $('genCard').innerHTML = '';
+    const emri = lloji==='fitim' ? 'mënyrat e fitimit' : 'strategjitë e marketingut';
+    $('status').innerHTML = `<span class="spin"></span>E nisa kërkimin për ${emri}. Po punon në sfond…`;
     try {
-      const d = await (await fetch('/gjenero/'+lloji, {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
-      renderGenerated(d);
-    } catch (e) { $('genCard').innerHTML = `<div class="card err">Gabim rrjeti: ${esc(e.message)}</div>`; }
-    finally { $('genFitim').disabled=false; $('genMkt').disabled=false; $('status').textContent=''; }
-  }
-
-  async function saveSelected() {
-    const chosen = [];
-    document.querySelectorAll('.chk').forEach(x => { if (x.checked) chosen.push(current.list[+x.dataset.i]); });
-    if (!chosen.length) { $('saveStatus').textContent = 'Zgjidh të paktën një.'; return; }
-    $('saveSel').disabled = true; $('saveStatus').innerHTML = '<span class="spin"></span>Po ruan…';
-    try {
-      const d = await (await fetch('/ruaj/'+current.lloji, {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ list: chosen, replace: $('replace').checked })
-      })).json();
-      $('saveStatus').textContent = d.error ? ('Gabim: '+d.error) : ('U ruajtën '+d.ruajtur+' opsione ✓');
-      loadSaved();
-    } catch (e) { $('saveStatus').textContent = 'Gabim: '+e.message; }
-    finally { $('saveSel').disabled = false; }
+      const { id, error } = await (await fetch('/nis/'+lloji, {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !id) throw new Error(error || 'S\'u nis dot.');
+      // pyet çdo 3 sekonda a mbaroi
+      timer = setInterval(async () => {
+        try {
+          const j = await (await fetch('/status/'+id)).json();
+          if (j.status === 'gati') {
+            clearInterval(timer); timer = null;
+            $('status').innerHTML = `<span class="ok">U gjeneruan & u ruajtën ${ (j.list||[]).length } opsione për ${emri} ✓</span>`;
+            $('genFitim').disabled = false; $('genMkt').disabled = false;
+            loadSaved();
+          } else if (j.status === 'gabim') {
+            clearInterval(timer); timer = null;
+            $('status').innerHTML = `<span class="err">Gabim: ${esc(j.error)}</span>`;
+            $('genFitim').disabled = false; $('genMkt').disabled = false;
+          } else if (j.status === 'pa_gjetur') {
+            clearInterval(timer); timer = null;
+            $('status').innerHTML = `<span class="err">Puna humbi (ndoshta serveri u rindërtua). Provo sërish.</span>`;
+            $('genFitim').disabled = false; $('genMkt').disabled = false;
+          }
+          // ndryshe: ende 'po_punon' — vazhdojmë të presim
+        } catch (e) { /* pa probleme, provojmë përsëri në ciklin tjetër */ }
+      }, 3000);
+    } catch (e) {
+      $('status').innerHTML = `<span class="err">Gabim: ${esc(e.message)}</span>`;
+      $('genFitim').disabled = false; $('genMkt').disabled = false;
+    }
   }
 
   async function loadSaved() {
@@ -140,17 +107,15 @@
       let html = '';
       for (const lloji of ['fitim','marketing']) {
         const arr = groups[lloji]; if (!arr || !arr.length) continue;
-        html += `<h2 style="margin-top:12px">${titles[lloji]} (${arr.length})</h2>`;
+        html += `<h2 style="margin-top:12px">${titles[lloji]} <span class="pill">${arr.length}</span></h2>`;
         const g = groupByKat(arr);
         for (const k of Object.keys(g)) {
           html += `<div class="kat">${esc(k)}</div>`;
-          for (const {m} of g[k]) html += `<div class="m"><span class="txt"><b>${esc(m.emri)}</b> — ${esc(m.pershkrim)}</span><span class="delx" data-id="${m.id}">fshi</span></div>`;
+          for (const m of g[k]) html += `<div class="m"><span class="txt"><b>${esc(m.emri)}</b> — ${esc(m.pershkrim)}</span><span class="delx" data-id="${m.id}">fshi</span></div>`;
         }
       }
       $('saved').innerHTML = html || 'Ende asgjë e ruajtur.';
-      $('saved').querySelectorAll('.delx').forEach(x => x.onclick = async () => {
-        await fetch('/fshi/'+x.dataset.id, {method:'POST'}); loadSaved();
-      });
+      $('saved').querySelectorAll('.delx').forEach(x => x.onclick = async () => { await fetch('/fshi/'+x.dataset.id, {method:'POST'}); loadSaved(); });
     } catch (e) { $('saved').textContent = "S'u ngarkua."; }
   }
 
