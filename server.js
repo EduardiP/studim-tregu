@@ -1,7 +1,10 @@
 // server.js — projekti "studim-tregu"
-// Gjeneron TE GJITHA mwnyrat e fitimit / strategjite e marketingut (me kerkim ne internet),
-// e bwn nw SFOND qw te mos e presw Railway, e RUAN automatikisht te plote kur mbaron,
-// dhe faqja e merr pastaj. Fshirja prek vetem te njejtin lloj.
+// Gjeneron TE GJITHA mwnyrat e fitimit / strategjite e marketingut me KERKIM ne internet.
+// Per te shmangur timeout, e ndan punen ne copa NE BACKEND sipas kategorive:
+//   1) Pyet AI per kategorite (shpejt).
+//   2) Per secilen kategori ben nje kerkim te vogel me internet (s'ka timeout).
+//   3) I bashkon te gjitha, heq dublikatat, RUAN njeheresh ne databaz.
+//   4) Faqja e merr te ploten pasi mbaron. Asnje cope s'shihet, asnje mbivendosje.
  
 const express = require('express');
 const path = require('path');
@@ -26,7 +29,7 @@ if (pool) {
     CREATE TABLE IF NOT EXISTS metodat (
       id         SERIAL PRIMARY KEY,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-      lloji      TEXT NOT NULL,        -- 'fitim' ose 'marketing'
+      lloji      TEXT NOT NULL,
       emri       TEXT NOT NULL,
       kategoria  TEXT,
       pershkrim  TEXT
@@ -37,20 +40,37 @@ if (pool) {
   console.warn('Kujdes: DATABASE_URL mungon — s\'ruhet dot.');
 }
  
-// Kujtesa e perkohshme e "puneve" ne sfond (job-eve)
-const jobs = {}; // id -> { status:'po_punon'|'gati'|'gabim', lloji, list, error }
+const jobs = {}; // id -> { status, lloji, list, error, progres }
  
-function methodPrompt(lloji) {
-  if (lloji === 'fitim') {
-    return `List ALL monetization / revenue / payment models that exist for businesses and products IN GENERAL — across software, physical goods, services, content, media, marketplaces, etc.
-Be EXHAUSTIVE and organized by category. Do NOT restrict to any specific business type, budget, geography, or constraint — list every model that exists. Use web_search so nothing modern is missing.
-Output ONLY a JSON array (no markdown, no text around it). Each item:
-{"name":"common English name","kategoria":"category","pershkrim":"one short line in Albanian"}`;
-  }
-  return `List ALL marketing / distribution / advertising / customer-acquisition strategies that exist IN GENERAL — across every channel and every type of business.
-Be EXHAUSTIVE and organized by category. Do NOT restrict to any specific business, budget, geography, or constraint — list every strategy that exists. Use web_search so nothing modern is missing.
-Output ONLY a JSON array (no markdown, no text around it). Each item:
-{"name":"common English name","kategoria":"category","pershkrim":"one short line in Albanian"}`;
+function temaTxt(lloji) {
+  return lloji === 'fitim'
+    ? 'monetization / revenue / payment models for businesses and products IN GENERAL (software, physical goods, services, content, media, marketplaces, finance, etc.)'
+    : 'marketing / distribution / advertising / customer-acquisition strategies IN GENERAL (every channel and business type)';
+}
+ 
+// Hapi 1: merr listen e kategorive
+async function merrKategorite(lloji) {
+  const r = await openai.responses.create({
+    model: MODEL,
+    input: [{ role: 'user', content:
+      `List the MAIN categories that organize all ${temaTxt(lloji)}.
+Give 12-20 broad categories that together cover everything. Output ONLY a JSON array of strings, no markdown. Each string is one category name in Albanian.` }]
+  });
+  return extractJsonArray(r.output_text);
+}
+ 
+// Hapi 2: per nje kategori, merr te gjitha metodat (me kerkim ne internet)
+async function merrMetodat(lloji, kategoria) {
+  const r = await openai.responses.create({
+    model: MODEL,
+    tools: [{ type: 'web_search' }],
+    input: [{ role: 'user', content:
+      `List ALL ${temaTxt(lloji)} that belong to the category "${kategoria}".
+Be exhaustive for THIS category only. Use web_search so nothing modern is missing.
+Output ONLY a JSON array, no markdown. Each item:
+{"name":"common English name","kategoria":"${kategoria}","pershkrim":"one short line in Albanian"}` }]
+  });
+  return extractJsonArray(r.output_text);
 }
  
 function extractJsonArray(text) {
@@ -60,27 +80,39 @@ function extractJsonArray(text) {
   return JSON.parse(text.slice(s, e + 1));
 }
  
-// Puna ne sfond: kerko -> ruaj te plote -> shenoje 'gati'
+// Puna e plote ne sfond
 async function bejPunen(id, lloji) {
   try {
-    const r = await openai.responses.create({
-      model: MODEL,
-      tools: [{ type: 'web_search' }],   // kerkimi ne internet i ndezur
-      input: [{ role: 'user', content: methodPrompt(lloji) }]
-    });
-    const list = extractJsonArray(r.output_text);
+    const kategorite = await merrKategorite(lloji);
+    jobs[id].progres = `0/${kategorite.length} kategori`;
  
-    if (pool && Array.isArray(list)) {
-      // fshi vetem te njejtin lloj, pastaj ruaj te renat
-      await pool.query('DELETE FROM metodat WHERE lloji=$1', [lloji]);
-      for (const m of list) {
+    const seen = new Set();
+    const total = [];
+    let i = 0;
+    for (const kat of kategorite) {
+      i++;
+      try {
+        const pjesa = await merrMetodat(lloji, kat);
+        for (const m of (pjesa || [])) {
+          const key = String(m.name || '').trim().toLowerCase();
+          if (!key || seen.has(key)) continue;   // hiq dublikatat
+          seen.add(key);
+          total.push({ name: m.name, kategoria: m.kategoria || kat, pershkrim: m.pershkrim });
+        }
+      } catch (e) { /* nje kategori deshtoi — vazhdojme me te tjerat */ }
+      jobs[id].progres = `${i}/${kategorite.length} kategori`;
+    }
+ 
+    if (pool && total.length) {
+      await pool.query('DELETE FROM metodat WHERE lloji=$1', [lloji]); // vetem ky lloj
+      for (const m of total) {
         await pool.query(
           'INSERT INTO metodat (lloji, emri, kategoria, pershkrim) VALUES ($1,$2,$3,$4)',
-          [lloji, String(m.name || '').slice(0, 300), String(m.kategoria || '').slice(0, 200), String(m.pershkrim || '').slice(0, 1000)]
+          [lloji, String(m.name || '').slice(0,300), String(m.kategoria || '').slice(0,200), String(m.pershkrim || '').slice(0,1000)]
         );
       }
     }
-    jobs[id] = { status: 'gati', lloji, list };
+    jobs[id] = { status: 'gati', lloji, list: total };
   } catch (e) {
     jobs[id] = { status: 'gabim', lloji, error: e.message };
   }
@@ -89,24 +121,21 @@ async function bejPunen(id, lloji) {
 app.use(express.json({ limit: '2mb' }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
  
-// NIS punen ne sfond, kthe menjehere nje id (Railway s'pret gjate)
 app.post('/nis/:lloji', (req, res) => {
   const lloji = req.params.lloji;
   if (lloji !== 'fitim' && lloji !== 'marketing') return res.status(400).json({ error: 'Lloj i panjohur.' });
   const id = crypto.randomUUID();
-  jobs[id] = { status: 'po_punon', lloji };
-  bejPunen(id, lloji); // nuk e presim — punon ne sfond
+  jobs[id] = { status: 'po_punon', lloji, progres: 'po nis…' };
+  bejPunen(id, lloji);
   res.json({ id });
 });
  
-// KONTROLLO statusin e nje pune
 app.get('/status/:id', (req, res) => {
   const j = jobs[req.params.id];
   if (!j) return res.json({ status: 'pa_gjetur' });
   res.json(j);
 });
  
-// Lexo metodat e ruajtura (secila e aksesueshme me vete)
 app.get('/metodat', async (req, res) => {
   if (!pool) return res.json([]);
   try {
@@ -115,13 +144,10 @@ app.get('/metodat', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
  
-// Fshi nje opsion te vetem te ruajtur
 app.post('/fshi/:id', async (req, res) => {
   if (!pool) return res.status(500).json({ error: 'S\'ka databaz.' });
-  try {
-    await pool.query('DELETE FROM metodat WHERE id=$1', [req.params.id]);
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  try { await pool.query('DELETE FROM metodat WHERE id=$1', [req.params.id]); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
  
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
