@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studim tregu — eksperiment</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:920px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  label { display:block; font-size:14px; color:var(--mut); margin:0 0 6px; }
+  textarea { width:100%; min-height:180px; background:var(--card); color:var(--txt); border:1px solid var(--line);
+             border-radius:10px; padding:12px; font:14px/1.5 ui-monospace,Menlo,Consolas,monospace; resize:vertical; }
+  .row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:14px 0 6px; }
+  .toggle { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--txt); cursor:pointer; user-select:none; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 20px; font-size:15px;
+           font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.55; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0; }
+  .verdict { border-left:3px solid var(--good); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-weight:500; }
+  .pick { color:var(--good); font-weight:600; }
+  .src a { color:var(--acc); text-decoration:none; font-size:13px; display:block; }
+  .src a:hover { text-decoration:underline; }
+  details { margin-top:8px; }
+  summary { cursor:pointer; color:var(--mut); font-size:14px; }
+  pre { white-space:pre-wrap; word-break:break-word; font:12px/1.5 ui-monospace,monospace; color:var(--mut);
+        background:#0b0d12; border:1px solid var(--line); border-radius:8px; padding:12px; max-height:340px; overflow:auto; }
+  .err { color:#ff9a9a; }
+  .hist a { color:var(--acc); cursor:pointer; }
+  .small { font-size:13px; color:var(--mut); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid #06122b; border-top-color:transparent;
+          border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Studim tregu — eksperiment</h1>
+  <p class="sub">Pyetja kryesore: cili model biznesi ka tavanin &amp; ritmin më të lartë të të ardhurave në pjekuri, brenda 1 viti rritje, me aftësitë e mia plus mjetet AI.</p>
+
+  <label for="ctx">Konteksti yt (plotëso me numrat realë)</label>
+  <textarea id="ctx">Buxheti: 350$ total, 50$/muaj për shpenzime
+Aftësitë: programim web (JS/Node, Shopify) + aftësi e zgjeruar ndërtimi përmes mjeteve AI (Claude, Claude Code) — mund të ndërtoj produkte teknike vetëm, pa ekip. Pikë e dobët: marketingu/shitja.
+Kohë: 5 orë/javë
+Gjeografia: global online
+Asetet: Railway, OpenAI API, akses në mjete AI
+Mbijetesa pa të ardhura: 12 muaj
+Kufi: rritja deri në pjekuri jo më shumë se 1 vit</textarea>
+
+  <div class="row">
+    <label class="toggle"><input type="checkbox" id="search" checked> Aktivizo kërkimin në internet (testi i drejtë)</label>
+    <button id="run">Ekzekuto eksperimentin</button>
+    <span id="status" class="small"></span>
+  </div>
+  <p class="small">Provoje një herë me kërkim dhe një herë pa — krahaso sa ndryshon thellësia.</p>
+
+  <div id="out"></div>
+
+  <div class="card">
+    <strong>Historiku</strong> <span class="small">(20 të fundit)</span>
+    <div id="hist" class="hist small" style="margin-top:8px;">—</div>
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  function renderResult(d) {
+    const out = $('out');
+    if (d.error && !d.parsed) {
+      out.innerHTML = `<div class="card err">Gabim: ${esc(d.error)}</div>` +
+        (d.raw ? `<details open><summary>Outputi raw</summary><pre>${esc(d.raw)}</pre></details>` : '');
+      return;
+    }
+    const p = d.parsed || {};
+    let html = '';
+    if (d.error) html += `<div class="card err">Shënim: ${esc(d.error)}</div>`;
+    if (p.summary) html += `<div class="card verdict"><strong>Verdikti:</strong> ${esc(p.summary)}` +
+      (p.top_pick ? ` <span class="pick">→ ${esc(p.top_pick)}</span>` : '') + `</div>`;
+
+    if (Array.isArray(p.categories) && p.categories.length) {
+      html += `<div class="card"><table><thead><tr>
+        <th>Kategoria</th><th>Tavan</th><th>Ritëm</th><th>Motor</th><th>Pak konk.</th><th>Përshtatje</th><th>Mbijetesë</th>
+      </tr></thead><tbody>`;
+      for (const c of p.categories) {
+        const s = c.scores || {};
+        const isPick = p.top_pick && c.name === p.top_pick;
+        html += `<tr>
+          <td class="${isPick?'pick':''}">${esc(c.name)}</td>
+          <td>${esc(s.ceiling)}</td><td>${esc(s.velocity)}</td><td>${esc(s.growth_engine)}</td>
+          <td>${esc(s.saturation)}</td><td>${esc(s.fit)}</td><td>${esc(s.survivability)}</td>
+        </tr>
+        <tr><td colspan="7" class="small">${esc(c.rationale)}
+          <div class="src">${(c.sources||[]).map(u=>`<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`).join('')}</div>
+        </td></tr>`;
+      }
+      html += `</tbody></table></div>`;
+    }
+    html += `<details><summary>Outputi raw (JSON)</summary><pre>${esc(d.raw)}</pre></details>`;
+    out.innerHTML = html;
+  }
+
+  async function run() {
+    const btn = $('run'); btn.disabled = true;
+    $('status').innerHTML = '<span class="spin"></span>Po kërkon &amp; analizon… (mund të zgjasë pak)';
+    $('out').innerHTML = '';
+    try {
+      const res = await fetch('/run', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ context: $('ctx').value, useSearch: $('search').checked })
+      });
+      const d = await res.json();
+      renderResult(d);
+      loadHistory();
+    } catch (e) {
+      $('out').innerHTML = `<div class="card err">Gabim rrjeti: ${esc(e.message)}</div>`;
+    } finally {
+      btn.disabled = false; $('status').textContent = '';
+    }
+  }
+
+  async function loadHistory() {
+    try {
+      const res = await fetch('/history');
+      const rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) { $('hist').textContent = 'Ende asgjë.'; return; }
+      $('hist').innerHTML = rows.map(r => {
+        const d = new Date(r.created_at).toLocaleString('sq-AL');
+        const tag = r.search_used ? 'me kërkim' : 'pa kërkim';
+        return `#${r.id} · ${esc(d)} · ${tag} · <strong>${esc(r.top_pick||'—')}</strong>`;
+      }).join('<br>');
+    } catch (e) { $('hist').textContent = 'S\'u ngarkua historiku.'; }
+  }
+
+  $('run').addEventListener('click', run);
+  loadHistory();
+</script>
+</body>
+</html>
