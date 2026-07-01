@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filtri i marketingut</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --p:#b794f6; --warn:#f0b866; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  h2 { font-size:16px; font-weight:600; margin:18px 0 6px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--mut); font-weight:500; }
+  .tag { display:inline-block; border-radius:20px; padding:1px 9px; font-size:12px; }
+  .shpejt { background:rgba(79,191,133,.15); color:var(--good); }
+  .vonese { background:rgba(240,184,102,.15); color:var(--warn); }
+  .num { font-weight:600; }
+  .sq { color:var(--mut); font-size:13px; }
+  .thelluar { border-left:3px solid var(--p); }
+  .err { color:#ff9a9a; }
+  .ok { color:var(--good); }
+  .link { color:var(--acc); cursor:pointer; font-size:13px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .badge { display:inline-block; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 10px; font-size:12px; color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Filtri i marketingut për biznesin tim</h1>
+  <p class="sub">Merr metodat e ruajtura, i kalon në 3 nivele (po/jo/ndoshta → vlerësim → thellim për 10 më të mirat) dhe nxjerr tabelën e përshtatshme me kushtet e tua.</p>
+
+  <div class="card">
+    <button id="nis">Nis filtrimin</button>
+    <div id="status" class="small" style="margin-top:10px;"></div>
+    <p class="small" style="margin-top:8px;">Mund të zgjasë disa minuta. S'prishet edhe nëse mbyll faqen — kthehu dhe kliko "Rifresko rezultatin".</p>
+    <div style="margin-top:8px;"><span class="link" id="refresh">↻ Rifresko rezultatin e fundit</span></div>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  let timer = null;
+  let runId = null;
+
+  async function nis() {
+    if (timer) { clearInterval(timer); timer = null; }
+    $('nis').disabled = true;
+    $('status').innerHTML = '<span class="spin"></span>E nisa. Po punon në sfond…';
+    $('out').innerHTML = '';
+    try {
+      const { run, error } = await (await fetch('/filter/nis', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error || 'S\'u nis dot.');
+      runId = run;
+      timer = setInterval(check, 3000);
+    } catch (e) {
+      $('status').innerHTML = `<span class="err">Gabim: ${esc(e.message)}</span>`;
+      $('nis').disabled = false;
+    }
+  }
+
+  async function check() {
+    if (!runId) return;
+    try {
+      const j = await (await fetch('/filter/status/'+runId)).json();
+      if (j.status === 'po_punon') {
+        $('status').innerHTML = `<span class="spin"></span>Po punon… ${esc(j.progres||'')}`;
+      } else if (j.status === 'gati') {
+        clearInterval(timer); timer = null;
+        $('status').innerHTML = `<span class="ok">Mbaroi ✓</span>`;
+        $('nis').disabled = false;
+        loadRezultat();
+      } else if (j.status === 'gabim') {
+        clearInterval(timer); timer = null;
+        $('status').innerHTML = `<span class="err">Gabim: ${esc(j.error)}</span>`;
+        $('nis').disabled = false;
+      } else if (j.status === 'pa_gjetur') {
+        clearInterval(timer); timer = null;
+        $('status').innerHTML = `<span class="err">Puna humbi (serveri u rindërtua). Provo sërish.</span>`;
+        $('nis').disabled = false;
+      }
+    } catch (e) { /* provojmë përsëri */ }
+  }
+
+  async function loadRezultat() {
+    if (!runId) { $('out').innerHTML = '<div class="card small">Nis një filtrim së pari.</div>'; return; }
+    try {
+      const rows = await (await fetch('/filter/rezultat/'+runId)).json();
+      if (!Array.isArray(rows) || !rows.length) { $('out').innerHTML = '<div class="card small">Asnjë rezultat.</div>'; return; }
+      let html = `<div class="card"><h2 style="margin-top:0">Metodat e përshtatshme <span class="badge">${rows.length}</span></h2>
+        <table><thead><tr><th>Metoda</th><th>Koha</th><th>Funksionim</th><th>Potencial</th><th>Si kombinohet</th></tr></thead><tbody>`;
+      for (const r of rows) {
+        const tag = r.kohe==='shpejt' ? '<span class="tag shpejt">shpejt</span>' : (r.kohe==='vonese' ? '<span class="tag vonese">me vonesë</span>' : esc(r.kohe));
+        html += `<tr class="${r.thelluar?'thelluar':''}">
+          <td><b>${esc(r.emri)}</b><div class="sq">${esc(r.kategoria)}</div></td>
+          <td>${tag}</td>
+          <td class="num">${esc(r.funksionim)}/5</td>
+          <td class="num">${esc(r.potencial)}/5</td>
+          <td class="sq">${esc(r.kombinim)}${ r.thelluar && r.sqarim ? `<div style="margin-top:6px;color:var(--txt)"><b>Thellim:</b> ${esc(r.sqarim)}</div>` : '' }</td>
+        </tr>`;
+      }
+      html += `</tbody></table></div>`;
+      $('out').innerHTML = html;
+    } catch (e) { $('out').innerHTML = `<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
+  }
+
+  $('nis').addEventListener('click', nis);
+  $('refresh').addEventListener('click', loadRezultat);
+</script>
+</body>
+</html>
