@@ -46,8 +46,11 @@ function nxjerrJson(text, hapDaka = '[', mbyllDaka = ']') {
  
 function createMarketingFilterRouter(pool, openai, MODEL) {
   const router = express.Router();
+  const path = require('path');
+  router.get('/', (req, res) => res.sendFile(path.join(__dirname, 'filter.html')));
   const jobs = {}; // id -> { status, faza, progres, error }
- 
+
+
   // Tabelat e reja (te ndara nga 'metodat')
   if (pool) {
     pool.query(`
