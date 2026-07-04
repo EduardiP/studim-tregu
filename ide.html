@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gjetja e llojit të biznesit</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --p:#b794f6; --warn:#f0b866; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:940px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:12px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .item { display:flex; gap:14px; align-items:flex-start; padding:12px 0; border-bottom:1px solid #20242e; }
+  .notes { display:flex; flex-direction:column; gap:6px; min-width:96px; }
+  .note { font-weight:700; font-size:15px; border-radius:8px; padding:4px 6px; text-align:center; }
+  .note small { display:block; font-weight:500; font-size:10px; opacity:.8; text-transform:uppercase; letter-spacing:.03em; }
+  .hi { background:rgba(79,191,133,.15); color:var(--good); }
+  .mid { background:rgba(240,184,102,.15); color:var(--warn); }
+  .lo { background:rgba(154,163,178,.12); color:var(--mut); }
+  .emri { font-weight:600; font-size:16px; }
+  .kat { color:var(--p); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:5px 0; }
+  .chip { font-size:12px; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 9px; color:var(--mut); }
+  .arsye { font-size:13px; color:var(--mut); margin-top:3px; }
+  .err { color:#ff9a9a; } .ok { color:var(--good); }
+  .link { color:var(--acc); cursor:pointer; font-size:13px; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Hapi 1 — Gjetja e llojit të biznesit</h1>
+  <p class="sub">Hulumtim i gjerë me kërkim, pa paragjykim: vetëm llojet moderne që përputhen me kushtet e tua. Dy nota 1–10 (përputhja me ty · hapësira e tregut), B2B/B2C, potencial global, dhe koha deri në kulm.</p>
+
+  <div class="card">
+    <button id="nis">Gjenero llojet e biznesit</button>
+    <div id="status" class="small" style="margin-top:10px;"></div>
+    <p class="small" style="margin-top:8px;">Kërkim i matur — mund të zgjasë disa minuta. S'prishet edhe nëse mbyll faqen.</p>
+    <div style="margin-top:6px;"><span class="link" id="refresh">↻ Shfaq të ruajturat</span></div>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  let timer = null, runId = null;
+  const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
+
+  function render(rows){
+    if (!Array.isArray(rows) || !rows.length){ $('out').innerHTML='<div class="card small">Ende asgjë. Kliko "Gjenero".</div>'; return; }
+    let html = `<div class="card">`;
+    for (const r of rows){
+      html += `<div class="item">
+        <div class="notes">
+          <div class="note ${cls(r.note_pershtatje)}">${esc(r.note_pershtatje)}/10<small>Përputhje</small></div>
+          <div class="note ${cls(r.note_hapesire)}">${esc(r.note_hapesire)}/10<small>Hapësirë</small></div>
+        </div>
+        <div style="flex:1">
+          <div class="emri">${esc(r.emri)}</div>
+          <div class="kat">${esc(r.kategoria)}</div>
+          <div class="chips">
+            <span class="chip">${esc(r.tregu)}</span>
+            <span class="chip">Global: ${esc(r.potencial_global)}</span>
+            <span class="chip">Kulmi: ${esc(r.koha_kulm)}</span>
+          </div>
+          <div class="arsye">${esc(r.arsye)}</div>
+        </div>
+      </div>`;
+    }
+    html += `</div>`;
+    $('out').innerHTML = html;
+  }
+
+  async function loadLloje(){
+    try { render(await (await fetch('/ide/lloje')).json()); }
+    catch(e){ $('out').innerHTML=`<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
+  }
+
+  async function nis(){
+    if (timer){ clearInterval(timer); timer=null; }
+    $('nis').disabled = true;
+    $('status').innerHTML = '<span class="spin"></span>Po kërkon…';
+    try {
+      const { run, error } = await (await fetch('/ide/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      runId = run;
+      timer = setInterval(async () => {
+        try {
+          const j = await (await fetch('/ide/status/'+runId)).json();
+          if (j.status==='po_punon'){ $('status').innerHTML=`<span class="spin"></span>Po kërkon… ${esc(j.progres||'')}`; }
+          else if (j.status==='gati'){ clearInterval(timer); timer=null; $('status').innerHTML=`<span class="ok">U gjeneruan ${ (j.list||[]).length } lloje ✓</span>`; $('nis').disabled=false; loadLloje(); }
+          else if (j.status==='gabim'){ clearInterval(timer); timer=null; $('status').innerHTML=`<span class="err">Gabim: ${esc(j.error)}</span>`; $('nis').disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(timer); timer=null; $('status').innerHTML=`<span class="err">Puna humbi. Provo sërish.</span>`; $('nis').disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ $('status').innerHTML=`<span class="err">Gabim: ${esc(e.message)}</span>`; $('nis').disabled=false; }
+  }
+
+  $('nis').addEventListener('click', nis);
+  $('refresh').addEventListener('click', loadLloje);
+  loadLloje();
+</script>
+</body>
+</html>
