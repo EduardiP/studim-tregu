@@ -148,5 +148,7 @@ app.post('/fshi/:id', async (req, res) => {
 // ===== SEKSIONI I RI: filtri i marketingut (i ndare) =====
 const { createMarketingFilterRouter } = require('./marketing-filter');
 app.use('/filter', createMarketingFilterRouter(pool, openai, MODEL));
+const { createIdeRouter } = require('./ide-biznesi');
+app.use('/ide', createIdeRouter(pool, openai, MODEL));
 
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
