@@ -53,6 +53,8 @@
   const $ = id => document.getElementById(id);
   const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   let timer = null, runId = null;
+  let alfabetik = false;
+  let teDhenat = [];
   const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
 
   function render(rows){
@@ -81,8 +83,18 @@
   }
 
   async function loadLloje(){
-    try { render(await (await fetch('/ide/lloje')).json()); }
-    catch(e){ $('out').innerHTML=`<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
+    try {
+      teDhenat = await (await fetch('/ide/lloje')).json();
+      shfaq();
+    } catch(e){ $('out').innerHTML = `<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
+  }
+
+  function shfaq(){
+    let rows = [...teDhenat];
+    if (alfabetik) {
+      rows.sort((a,b) => String(a.emri||'').localeCompare(String(b.emri||''), 'sq'));
+    }
+    render(rows);
   }
 
   async function nis(){
@@ -107,6 +119,11 @@
 
   $('nis').addEventListener('click', nis);
   $('refresh').addEventListener('click', loadLloje);
+  $('rendit').addEventListener('click', () => {
+    alfabetik = !alfabetik;
+    $('rendit').textContent = alfabetik ? '↕ Rendit sipas notës' : '↕ Rendit alfabetikisht';
+    shfaq();
+  });
   loadLloje();
 </script>
 </body>
