@@ -12,6 +12,7 @@
   h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
   p.sub { color:var(--mut); margin:0 0 20px; }
   button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button.ruaj { background:var(--good); }
   button:disabled { opacity:.5; cursor:default; }
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin:14px 0; }
   .small { font-size:13px; color:var(--mut); }
@@ -29,19 +30,22 @@
   .err { color:#ff9a9a; } .ok { color:var(--good); }
   .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
   @keyframes s { to { transform:rotate(360deg); } }
+  .banner { background:rgba(240,184,102,.12); border:1px solid rgba(240,184,102,.3); color:var(--warn); border-radius:10px; padding:10px 14px; font-size:13px; margin:12px 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Fitimi neto — renditje e re e llojeve</h1>
-  <p class="sub">Merr llojet e ruajtura te /ide dhe i rendit sipas fitimit neto (sa mbetet realisht në xhep pas shpenzimeve, taksave, CAC). Model i lirë, një thirrje — kosto disa qindarka.</p>
+  <p class="sub">Vlerëso fitimin neto (sa mbetet realisht në xhep) me model mini + temperaturë 0. Rezultati shfaqet fillimisht pa u ruajtur — ruhet vetëm kur klikon "Ruaj".</p>
 
   <div class="card">
     <button id="nis">Llogarit fitimin neto</button>
+    <button id="ruaj" class="ruaj" style="margin-left:8px; display:none;">Ruaj këtë rezultat</button>
     <span id="status" class="small" style="margin-left:10px;"></span>
     <div style="margin-top:8px;"><span class="small" style="cursor:pointer;color:var(--acc)" id="refresh">↻ Shfaq të ruajturat</span></div>
   </div>
 
+  <div id="banner"></div>
   <div id="out"></div>
 </div>
 
@@ -49,10 +53,10 @@
   const $ = id => document.getElementById(id);
   const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
-  let timer=null;
+  let timer=null, runAktual=null;
 
-  function render(rows){
-    if (!Array.isArray(rows) || !rows.length){ $('out').innerHTML='<div class="card small">Ende asgjë. Kliko "Llogarit fitimin neto".</div>'; return; }
+  function render(rows, isNew){
+    if (!Array.isArray(rows) || !rows.length){ $('out').innerHTML='<div class="card small">Ende asgjë.</div>'; return; }
     let html='<div class="card">';
     for (const r of rows){
       const neto = (r.fitimi_neto==null) ? '—' : r.fitimi_neto+'/10';
@@ -64,10 +68,10 @@
           <div class="chips">
             <span class="chip">${esc(r.tregu)}</span>
             <span class="chip">Global: ${esc(r.potencial_global)}</span>
-            <span class="chip">Përputhje: ${esc(r.note_pershtatje)}/10</span>
-            <span class="chip">Hapësirë: ${esc(r.note_hapesire)}/10</span>
+            ${r.note_pershtatje!=null?`<span class="chip">Përputhje: ${esc(r.note_pershtatje)}/10</span>`:''}
+            ${r.note_hapesire!=null?`<span class="chip">Hapësirë: ${esc(r.note_hapesire)}/10</span>`:''}
           </div>
-          ${ r.neto_arsye ? `<div class="arsye">${esc(r.neto_arsye)}</div>` : '' }
+          ${ r.arsye||r.neto_arsye ? `<div class="arsye">${esc(r.arsye||r.neto_arsye)}</div>` : '' }
         </div>
       </div>`;
     }
@@ -76,21 +80,28 @@
   }
 
   async function load(){
-    try { render(await (await fetch('/neto/lloje')).json()); }
+    try { render(await (await fetch('/neto/lloje')).json(), false); $('banner').innerHTML=''; }
     catch(e){ $('out').innerHTML=`<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
   }
 
   async function nis(){
     if (timer){ clearInterval(timer); timer=null; }
-    $('nis').disabled=true;
+    $('nis').disabled=true; $('ruaj').style.display='none';
     $('status').innerHTML='<span class="spin"></span>Po llogarit…';
     try {
       const { run, error } = await (await fetch('/neto/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
       if (error || !run) throw new Error(error||'S\'u nis dot.');
+      runAktual = run;
       timer = setInterval(async () => {
         try {
           const j = await (await fetch('/neto/status/'+run)).json();
-          if (j.status==='gati'){ clearInterval(timer); timer=null; $('status').innerHTML='<span class="ok">Mbaroi ✓</span>'; $('nis').disabled=false; load(); }
+          if (j.status==='gati'){
+            clearInterval(timer); timer=null;
+            $('status').innerHTML='<span class="ok">U llogarit ✓ (ende pa u ruajtur)</span>';
+            $('nis').disabled=false; $('ruaj').style.display='inline-block';
+            $('banner').innerHTML='<div class="banner">Ky është rezultati i ri, ende pa u ruajtur. Kliko "Ruaj" për ta zëvendësuar të vjetrin, ose "Llogarit" përsëri.</div>';
+            render(j.rezultat, true);
+          }
           else if (j.status==='gabim'){ clearInterval(timer); timer=null; $('status').innerHTML=`<span class="err">${esc(j.error)}</span>`; $('nis').disabled=false; }
           else if (j.status==='pa_gjetur'){ clearInterval(timer); timer=null; $('status').innerHTML='<span class="err">Humbi.</span>'; $('nis').disabled=false; }
         } catch(e){}
@@ -98,7 +109,22 @@
     } catch(e){ $('status').innerHTML=`<span class="err">Gabim: ${esc(e.message)}</span>`; $('nis').disabled=false; }
   }
 
+  async function ruaj(){
+    if (!runAktual) return;
+    $('ruaj').disabled=true;
+    $('status').innerHTML='<span class="spin"></span>Po ruaj…';
+    try {
+      const r = await (await fetch('/neto/ruaj/'+runAktual,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (r.error) throw new Error(r.error);
+      $('status').innerHTML='<span class="ok">U ruajt ✓</span>';
+      $('ruaj').style.display='none'; $('banner').innerHTML='';
+      load();
+    } catch(e){ $('status').innerHTML=`<span class="err">${esc(e.message)}</span>`; }
+    $('ruaj').disabled=false;
+  }
+
   $('nis').addEventListener('click', nis);
+  $('ruaj').addEventListener('click', ruaj);
   $('refresh').addEventListener('click', load);
   load();
 </script>
