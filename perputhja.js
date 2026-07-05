@@ -5,7 +5,7 @@
 const express = require('express');
 const path = require('path');
 
-const MODEL_LIRE = 'gpt-5.4-nano';
+const MODEL_LIRE = 'gpt-5.4-mini';
 
 function createPerputhjaRouter(pool, openai, MODEL) {
   const router = express.Router();
@@ -38,6 +38,7 @@ function createPerputhjaRouter(pool, openai, MODEL) {
 
       const resp = await openai.responses.create({
         model: MODEL_LIRE,
+        temperature: 0,
         input: [{ role: 'user', content:
 `Kam nje IDE biznesi. Me poshte ke LLOJET e biznesit dhe nen NE SECILIN, nen-llojet e tij.
 
