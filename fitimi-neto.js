@@ -1,12 +1,12 @@
-// fitimi-neto.js — shtese e vogel (adresa /neto). Merr llojet e ruajtura te tabela ide_lloje,
-// vlereson FITIMIN NETO (sa mbetet ne xhep pas shpenzimeve/taksave/kostove) me nje metrike 1-10,
-// dhe i rendit rishtas. Model i LIRE (gpt-5.4-nano), PA web search, NJE thirrje e vetme.
+// fitimi-neto.js — vleresim i FITIMIT NETO per llojet e ruajtura te ide_lloje.
+// Model MINI (me i mencur se nano, i lire), TEMPERATURE 0 (i qendrueshem).
+// Rrjedha: "Llogarit" -> shfaq rezultatin PA e ruajtur. "Ruaj" -> fshin te vjetrat, ruan te rejat.
 
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 
-const MODEL_LIRE = 'gpt-5.4-nano';
+const MODELI = 'gpt-5.4-mini';
 
 function createNetoRouter(pool, openai, MODEL) {
   const router = express.Router();
@@ -19,7 +19,7 @@ function createNetoRouter(pool, openai, MODEL) {
     pool.query(`ALTER TABLE ide_lloje ADD COLUMN IF NOT EXISTS neto_arsye TEXT;`).catch(()=>{});
   }
 
-  async function bejNeto(run) {
+  async function llogarit(run) {
     try {
       if (!pool) throw new Error("S'ka databaz.");
       const r = await pool.query('SELECT id, emri, kategoria, tregu, potencial_global FROM ide_lloje ORDER BY id');
@@ -29,16 +29,17 @@ function createNetoRouter(pool, openai, MODEL) {
       const lista = llojet.map((l,i) => `${i+1}. ${l.emri} (${l.tregu||''}, global: ${l.potencial_global||''})`).join('\n');
 
       const resp = await openai.responses.create({
-        model: MODEL_LIRE,
+        model: MODELI,
+        temperature: 0,
         input: [{ role: 'user', content:
-`Ke nje liste llojesh biznesi. Per SECILIN, jep nje vleresim te FITIMIT NETO 1-10 — pra sa mbetet REALISHT ne xhep pas zbritjes se: shpenzimeve operative, kostos se fitimit te klientit (CAC), taksave, kostos se mirembajtjes/infrastruktures, dhe cdo kostoje tjeter tipike per ate model biznesi. Bazohu ne marzhet tipike te njohura te secilit model (p.sh. software me abonim ka marzh shume te larte; marketplace ka marzh me te ulet sepse ka kosto operimi/moderimi; media varet nga trafiku; etj.).
+`Ke nje liste llojesh biznesi. Per SECILIN, jep nje vleresim te FITIMIT NETO 1-10 — sa mbetet REALISHT ne xhep pas zbritjes se: shpenzimeve operative, kostos se fitimit te klientit (CAC), taksave, kostos se mirembajtjes/infrastruktures/compute, dhe cdo kostoje tjeter tipike per ate model. Bazohu ne marzhet tipike te njohura (software me abonim = marzh shume i larte; AI-agent = marzh i larte por compute e ul pak; marketplace = marzh me i ulet nga operimi/moderimi; media = varet nga trafiku; direktori = marzh i mire por kerkon audience).
 
-10 = fitim neto shume i larte (thuajse cdo dollar hyres mbetet), 1 = fitim neto shume i ulet (shumica shkon ne kosto).
+10 = fitim neto shume i larte (thuajse cdo dollar hyres mbetet), 1 = shume i ulet.
 
 Lista:
 ${lista}
 
-Ktheji VETEM si JSON array me te njejtin RENDIT si lista, pa markdown. Cdo element:
+Ktheji VETEM si JSON array me te njejtin RENDIT, pa markdown. Cdo element:
 {"n": 1, "fitimi_neto": 0, "arsye": "nje rresht shqip pse ky fitim neto"}` }]
       });
 
@@ -47,13 +48,22 @@ Ktheji VETEM si JSON array me te njejtin RENDIT si lista, pa markdown. Cdo eleme
       if (s === -1 || e === -1) throw new Error('Nuk u gjet JSON');
       const arr = JSON.parse(txt.slice(s, e+1));
 
+      const rezultat = [];
       for (const item of arr) {
         const idx = (Number(item.n)||0) - 1;
         if (idx < 0 || idx >= llojet.length) continue;
-        await pool.query('UPDATE ide_lloje SET fitimi_neto=$1, neto_arsye=$2 WHERE id=$3',
-          [Number(item.fitimi_neto)||0, String(item.arsye||'').slice(0,600), llojet[idx].id]);
+        rezultat.push({
+          id: llojet[idx].id,
+          emri: llojet[idx].emri,
+          kategoria: llojet[idx].kategoria,
+          tregu: llojet[idx].tregu,
+          potencial_global: llojet[idx].potencial_global,
+          fitimi_neto: Number(item.fitimi_neto)||0,
+          arsye: String(item.arsye||'').slice(0,600)
+        });
       }
-      jobs[run] = { status: 'gati' };
+      rezultat.sort((a,b)=>b.fitimi_neto - a.fitimi_neto);
+      jobs[run] = { status: 'gati', rezultat };
     } catch (e) {
       jobs[run] = { status: 'gabim', error: e.message };
     }
@@ -62,17 +72,31 @@ Ktheji VETEM si JSON array me te njejtin RENDIT si lista, pa markdown. Cdo eleme
   router.post('/nis', (req, res) => {
     const run = crypto.randomUUID();
     jobs[run] = { status: 'po_punon' };
-    bejNeto(run);
+    llogarit(run);
     res.json({ run });
   });
   router.get('/status/:run', (req, res) => res.json(jobs[req.params.run] || { status: 'pa_gjetur' }));
+
+  router.post('/ruaj/:run', async (req, res) => {
+    try {
+      if (!pool) throw new Error("S'ka databaz.");
+      const j = jobs[req.params.run];
+      if (!j || j.status !== 'gati' || !j.rezultat) throw new Error('S\'ka rezultat për të ruajtur.');
+      await pool.query('UPDATE ide_lloje SET fitimi_neto=NULL, neto_arsye=NULL');
+      for (const x of j.rezultat) {
+        await pool.query('UPDATE ide_lloje SET fitimi_neto=$1, neto_arsye=$2 WHERE id=$3',
+          [x.fitimi_neto, x.arsye, x.id]);
+      }
+      res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+  });
 
   router.get('/lloje', async (req, res) => {
     if (!pool) return res.json([]);
     try {
       const r = await pool.query(
         `SELECT emri, kategoria, tregu, potencial_global, note_pershtatje, note_hapesire, fitimi_neto, neto_arsye
-         FROM ide_lloje ORDER BY COALESCE(fitimi_neto,0) DESC, note_pershtatje DESC, id`);
+         FROM ide_lloje WHERE fitimi_neto IS NOT NULL ORDER BY fitimi_neto DESC, id`);
       res.json(r.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
