@@ -1,5 +1,6 @@
-// perputhja.js — merr nje pershkrim ideje, e krahason me llojet dhe nen-llojet e ruajtura,
-// perjashton ato pa lidhje, kthen VETEM perputhjet e mira me note 1-10. Model i lire, pa search.
+// perputhja.js — merr nje pershkrim ideje, e krahason me llojet + nen-llojet e ruajtura.
+// Kthen: LLOJET ku ideja ben pjese (me note orientimi), dhe per secilin NEN-LLOJET qe
+// perputhen me idene (note >= 6, te tjerat hiqen). Emra te paster, PA kode. Model i lire, pa search.
 
 const express = require('express');
 const path = require('path');
@@ -17,43 +18,57 @@ function createPerputhjaRouter(pool, openai, MODEL) {
       const ideja = String((req.body && req.body.ideja) || '').trim();
       if (!ideja) return res.status(400).json({ error: 'Shkruaj idenë së pari.' });
 
-      const rL = await pool.query('SELECT emri, kategoria FROM ide_lloje ORDER BY id');
+      const rL = await pool.query('SELECT emri FROM ide_lloje ORDER BY id');
       let nen = [];
-      try { const rN = await pool.query('SELECT emri, kategoria, lloj_emri FROM ide_nendhoje ORDER BY id'); nen = rN.rows; } catch(e){}
+      try { const rN = await pool.query('SELECT emri, lloj_emri FROM ide_nendhoje ORDER BY id'); nen = rN.rows; } catch(e){}
 
-      const llojetTxt = rL.rows.map((l,i)=>`L${i+1}. ${l.emri} [${l.kategoria||''}]`).join('\n');
-      const nenTxt = nen.map((n,i)=>`N${i+1}. ${n.emri} [lloj: ${n.lloj_emri||''}]`).join('\n');
+      const perLloj = {};
+      for (const n of nen) {
+        const L = n.lloj_emri || '(pa lloj)';
+        if (!perLloj[L]) perLloj[L] = [];
+        perLloj[L].push(n.emri);
+      }
+      let struktura = '';
+      for (const L of rL.rows.map(x=>x.emri)) {
+        struktura += `\nLLOJI: ${L}\n`;
+        const subs = perLloj[L] || [];
+        if (subs.length) struktura += subs.map(s=>`   - ${s}`).join('\n') + '\n';
+        else struktura += '   (pa nen-lloje te ruajtura)\n';
+      }
 
       const resp = await openai.responses.create({
         model: MODEL_LIRE,
         input: [{ role: 'user', content:
-`Kam nje IDE biznesi. Me poshte ke nje liste LLOJESH dhe NEN-LLOJESH biznesi te njohura.
-Detyra: gjej me cilat perputhet ideja ime.
+`Kam nje IDE biznesi. Me poshte ke LLOJET e biznesit dhe nen NE SECILIN, nen-llojet e tij.
 
-RREGULLA:
-- Fillimisht PERJASHTO ato qe nuk perputhen ose perputhen dobet — MOS i nxjerr fare.
-- Nga ato qe MBETEN (perputhen mire ose shume mire), jep secilit nje note 1-10 sa perputhet me idene time (10 = perputhje shume e forte).
-- Rendit nga me e larta te me e uleta. Perfshi vetem note >= 6.
+Detyra:
+1) Gjej LLOJET me te cilat ideja ime ben pjese/ka lidhje. Jep secilit nje note ORIENTIMI 1-10 (sa i ngjashem eshte lloji me idene). Lloji sherben vetem per orientim.
+2) Per secilin lloj te perzgjedhur, gjej NEN-LLOJET e TIJ qe perputhen me idene time. PERJASHTO ato qe nuk perputhen ose perputhen dobet — perfshi vetem note >= 6. Jep secilit nen-lloj nje note 1-10.
+3) Perdor VETEM emrat e plote (ashtu si jane dhene). MOS shto kode, numra, ID apo etiketa. MOS grumbullo shume emra bashke.
 
 IDEJA IME:
 "${ideja}"
 
-LLOJET:
-${llojetTxt}
-
-NEN-LLOJET:
-${nenTxt || '(asnje)'}
+STRUKTURA (lloje me nen-llojet e tyre):
+${struktura}
 
 Ktheji VETEM si JSON, pa markdown:
-{"perputhjet":[{"tipi":"lloj|nen-lloj","emri":"","note":0,"pse":"nje rresht shqip"}]}` }]
+{"llojet":[{"lloji":"emri i plote i llojit","note":0,"nendhojet":[{"emri":"emri i plote i nen-llojit","note":0,"pse":"nje rresht shqip"}]}]}
+Perfshi vetem lloje qe kane te pakten nje nen-lloj me note >= 6 OSE qe vete perputhen qarte. Rendit sipas notes se llojit zbritese.` }]
       });
 
       const txt = resp.output_text || '';
       const s = txt.indexOf('{'), e = txt.lastIndexOf('}');
       if (s === -1 || e === -1) throw new Error('Nuk u gjet JSON');
       const obj = JSON.parse(txt.slice(s, e+1));
-      const lista = (obj.perputhjet || []).sort((a,b)=>(Number(b.note)||0)-(Number(a.note)||0));
-      res.json({ perputhjet: lista });
+      let llojet = (obj.llojet || []);
+      llojet.sort((a,b)=>(Number(b.note)||0)-(Number(a.note)||0));
+      for (const L of llojet) {
+        L.nendhojet = (L.nendhojet || [])
+          .filter(n => (Number(n.note)||0) >= 6)
+          .sort((a,b)=>(Number(b.note)||0)-(Number(a.note)||0));
+      }
+      res.json({ llojet });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
