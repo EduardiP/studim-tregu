@@ -151,4 +151,6 @@ const { createIdeRouter } = require('./ide-biznesi');
 app.use('/ide', createIdeRouter(pool, openai, MODEL));
 const { createNendhojeRouter } = require('./nendhoje');
 app.use('/nendhoje', createNendhojeRouter(pool, openai, MODEL));
+const { createNetoRouter } = require('./fitimi-neto');
+app.use('/neto', createNetoRouter(pool, openai, MODEL));
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
