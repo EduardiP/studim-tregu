@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faza 2 — Nën-llojet</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --p:#b794f6; --warn:#f0b866; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:28px 18px 90px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 20px; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--line); }
+  button:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:14px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .row { display:flex; gap:14px; align-items:flex-start; padding:12px 0; border-bottom:1px solid #20242e; }
+  .notes { display:flex; flex-direction:column; gap:5px; min-width:88px; }
+  .note { font-weight:700; font-size:14px; border-radius:8px; padding:4px 6px; text-align:center; }
+  .note small { display:block; font-weight:500; font-size:10px; opacity:.85; text-transform:uppercase; }
+  .hi { background:rgba(79,191,133,.15); color:var(--good); }
+  .mid { background:rgba(240,184,102,.15); color:var(--warn); }
+  .lo { background:rgba(154,163,178,.12); color:var(--mut); }
+  .emri { font-weight:600; font-size:15px; }
+  .kat { color:var(--p); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:5px 0; }
+  .chip { font-size:12px; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 9px; color:var(--mut); }
+  .fakt { font-size:13px; color:var(--mut); margin-top:3px; }
+  .err { color:#ff9a9a; } .ok { color:var(--good); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .csel { position:relative; }
+  .cbtn { width:100%; text-align:left; background:var(--card); border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:12px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .cpanel { position:absolute; z-index:20; left:0; right:0; margin-top:6px; max-height:340px; overflow:auto; background:#12151c; border:1px solid var(--line); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,.5); }
+  .citem { padding:10px 14px; cursor:pointer; border-bottom:1px solid #1c2029; }
+  .citem:hover { background:#1a1e27; }
+  .csub { padding:8px 14px 8px 26px; cursor:pointer; font-size:14px; color:var(--mut); border-bottom:1px solid #171b23; }
+  .csub:hover { background:#1a1e27; color:var(--txt); }
+  .ctitle { font-weight:600; }
+  .selected { color:var(--good); font-size:13px; margin-top:8px; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Faza 2 — Nën-llojet & studimi i hapësirës</h1>
+  <p class="sub">Kërkimi A gjen nën-llojet e të gjitha llojeve (me potencial, global, treg, kohë). Kërkimi B studion hapësirën për një nën-lloj që zgjedh nga carousel-i.</p>
+
+  <div class="card">
+    <div style="font-weight:600; margin-bottom:8px;">Kërkimi A — gjej nën-llojet</div>
+    <button id="nisA">Gjej nën-llojet</button>
+    <div id="statusA" class="small" style="margin-top:10px;"></div>
+    <p class="small" style="margin-top:6px;">Për të gjitha llojet, i ndarë në pjesë. Mund të zgjasë disa minuta. Mos bëj commit gjatë punës.</p>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:600; margin-bottom:8px;">Kërkimi B — studjo hapësirën</div>
+    <div class="csel">
+      <div class="cbtn" id="cbtn"><span id="cbtnTxt">Zgjedh një lloj → nën-lloj…</span><span>▾</span></div>
+      <div class="cpanel hide" id="cpanel"></div>
+    </div>
+    <div class="selected hide" id="selected"></div>
+    <div style="margin-top:10px;">
+      <button id="nisB" disabled>Studjo hapësirën</button>
+      <span id="statusB" class="small" style="margin-left:10px;"></span>
+    </div>
+    <p class="small" style="margin-top:6px;">Vetëm nën-llojet me potencial 5–10 studiohen.</p>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
+  let timerA=null, timerB=null, selId=null, allRows=[];
+
+  async function nisA(){
+    if (timerA){ clearInterval(timerA); timerA=null; }
+    $('nisA').disabled = true;
+    $('statusA').innerHTML = '<span class="spin"></span>Po kërkon…';
+    try {
+      const { run, error } = await (await fetch('/nendhoje/nisA',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      timerA = setInterval(async () => {
+        try {
+          const j = await (await fetch('/nendhoje/statusA/'+run)).json();
+          if (j.status==='po_punon'){ $('statusA').innerHTML=`<span class="spin"></span>Po kërkon… ${esc(j.progres||'')}`; }
+          else if (j.status==='gati'){ clearInterval(timerA); timerA=null; $('statusA').innerHTML='<span class="ok">Mbaroi ✓</span>'; $('nisA').disabled=false; loadAll(); loadCarousel(); }
+          else if (j.status==='gabim'){ clearInterval(timerA); timerA=null; $('statusA').innerHTML=`<span class="err">Gabim: ${esc(j.error)}</span>`; $('nisA').disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(timerA); timerA=null; $('statusA').innerHTML='<span class="err">Puna humbi. Provo sërish.</span>'; $('nisA').disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ $('statusA').innerHTML=`<span class="err">Gabim: ${esc(e.message)}</span>`; $('nisA').disabled=false; }
+  }
+
+  function render(rows){
+    if (!Array.isArray(rows) || !rows.length){ $('out').innerHTML='<div class="card small">Ende asgjë. Kliko "Gjej nën-llojet".</div>'; return; }
+    let html = '<div class="card">';
+    for (const r of rows){
+      const studiuar = r.studiuar;
+      html += `<div class="row">
+        <div class="notes">
+          <div class="note ${cls(r.potenciali)}">${esc(r.potenciali)}/10<small>Potencial</small></div>
+          ${ studiuar ? `<div class="note ${cls(r.hapesira)}">${esc(r.hapesira)}/10<small>Hapësirë</small></div>
+          <div class="note ${cls(r.metrika3)}">${esc(r.metrika3)}<small>E treta</small></div>` : '' }
+        </div>
+        <div style="flex:1">
+          <div class="emri">${esc(r.emri)}</div>
+          <div class="kat">${esc(r.lloj_emri)} · ${esc(r.kategoria)}</div>
+          <div class="chips">
+            <span class="chip">${esc(r.tregu)}</span>
+            <span class="chip">${r.global==='po'?'Global':'Jo-global'}</span>
+            <span class="chip">Kulmi: ${esc(r.koha_kulm)}</span>
+          </div>
+          ${ studiuar && r.faktoret ? `<div class="fakt"><b>Hapësira:</b> ${esc(r.faktoret)}</div>` : (Number(r.potenciali)<5 ? '<div class="fakt">Potencial &lt;5 — nuk studiohet.</div>' : '') }
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+    $('out').innerHTML = html;
+  }
+
+  async function loadAll(){
+    try { allRows = await (await fetch('/nendhoje/nendhoje')).json(); render(allRows); }
+    catch(e){ $('out').innerHTML=`<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
+  }
+
+  async function loadCarousel(){
+    try {
+      const llojet = await (await fetch('/nendhoje/llojet')).json();
+      if (!allRows.length) allRows = await (await fetch('/nendhoje/nendhoje')).json();
+      let html = '';
+      for (const L of llojet){
+        html += `<div class="citem ctitle" data-lloj="${esc(L)}">${esc(L)}</div>`;
+      }
+      $('cpanel').innerHTML = html || '<div class="citem small">S\'ka lloje ende.</div>';
+      $('cpanel').querySelectorAll('.citem[data-lloj]').forEach(el => {
+        el.addEventListener('click', () => {
+          const L = el.getAttribute('data-lloj');
+          const subs = allRows.filter(r => r.lloj_emri===L);
+          let sub = `<div class="citem ctitle" data-back="1">‹ ${esc(L)}</div>`;
+          for (const s of subs){
+            sub += `<div class="csub" data-id="${s.id}" data-emri="${esc(s.emri)}">${esc(s.emri)} <span style="opacity:.6">(${esc(s.potenciali)}/10)</span></div>`;
+          }
+          $('cpanel').innerHTML = sub;
+          $('cpanel').querySelector('[data-back]').addEventListener('click', loadCarousel);
+          $('cpanel').querySelectorAll('.csub').forEach(se => {
+            se.addEventListener('click', () => {
+              selId = se.getAttribute('data-id');
+              $('cbtnTxt').textContent = se.getAttribute('data-emri');
+              $('selected').textContent = 'Zgjedhur: ' + se.getAttribute('data-emri');
+              $('selected').classList.remove('hide');
+              $('nisB').disabled = false;
+              $('cpanel').classList.add('hide');
+            });
+          });
+        });
+      });
+    } catch(e){}
+  }
+
+  $('cbtn').addEventListener('click', () => {
+    $('cpanel').classList.toggle('hide');
+    if (!$('cpanel').classList.contains('hide')) loadCarousel();
+  });
+
+  async function nisB(){
+    if (!selId) return;
+    if (timerB){ clearInterval(timerB); timerB=null; }
+    $('nisB').disabled = true;
+    $('statusB').innerHTML = '<span class="spin"></span>Po studion…';
+    try {
+      const { run, error } = await (await fetch('/nendhoje/nisB/'+selId,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      timerB = setInterval(async () => {
+        try {
+          const j = await (await fetch('/nendhoje/statusB/'+run)).json();
+          if (j.status==='gati'){ clearInterval(timerB); timerB=null; $('statusB').innerHTML='<span class="ok">Mbaroi ✓</span>'; $('nisB').disabled=false; loadAll(); }
+          else if (j.status==='gabim'){ clearInterval(timerB); timerB=null; $('statusB').innerHTML=`<span class="err">${esc(j.error)}</span>`; $('nisB').disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(timerB); timerB=null; $('statusB').innerHTML='<span class="err">Humbi. Provo sërish.</span>'; $('nisB').disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ $('statusB').innerHTML=`<span class="err">Gabim: ${esc(e.message)}</span>`; $('nisB').disabled=false; }
+  }
+
+  $('nisA').addEventListener('click', nisA);
+  $('nisB').addEventListener('click', nisB);
+  loadAll();
+</script>
+</body>
+</html>
