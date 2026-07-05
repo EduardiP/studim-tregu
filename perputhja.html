@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Përputhja e idesë</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --p:#b794f6; --warn:#f0b866; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 20px; }
+  textarea { width:100%; min-height:130px; background:#0b0d12; border:1px solid var(--line); border-radius:10px; color:var(--txt); padding:12px 14px; font:15px/1.5 system-ui,sans-serif; resize:vertical; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; margin-top:10px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:14px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .row { display:flex; gap:14px; align-items:flex-start; padding:11px 0; border-bottom:1px solid #20242e; }
+  .note { font-weight:700; font-size:18px; min-width:56px; text-align:center; border-radius:8px; padding:5px 0; }
+  .note small { display:block; font-size:10px; font-weight:500; opacity:.85; text-transform:uppercase; }
+  .hi { background:rgba(79,191,133,.15); color:var(--good); }
+  .mid { background:rgba(240,184,102,.15); color:var(--warn); }
+  .emri { font-weight:600; font-size:15px; }
+  .tipi { color:var(--p); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .pse { font-size:13px; color:var(--mut); margin-top:3px; }
+  .err { color:#ff9a9a; } .ok { color:var(--good); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Me cilin lloj/nën-lloj përputhet ideja jote</h1>
+  <p class="sub">Shkruaj idenë e biznesit. Krahasohet me të gjitha llojet dhe nën-llojet e ruajtura, përjashton ato pa lidhje, dhe kthen vetëm përputhjet e forta me notë 1–10. Model i lirë — kosto qindarka.</p>
+
+  <div class="card">
+    <textarea id="ideja" placeholder="Përshkruaj idenë: çfarë bën, kujt i shërben, si fiton…"></textarea>
+    <button id="gjej">Gjej përputhjet</button>
+    <span id="status" class="small" style="margin-left:10px;"></span>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=8?'hi':'mid'; };
+
+  async function gjej(){
+    const ideja = $('ideja').value.trim();
+    if (!ideja){ $('status').innerHTML='<span class="err">Shkruaj idenë së pari.</span>'; return; }
+    $('gjej').disabled=true;
+    $('status').innerHTML='<span class="spin"></span>Po krahason…';
+    $('out').innerHTML='';
+    try {
+      const r = await (await fetch('/perputhja/gjej',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ideja})})).json();
+      if (r.error) throw new Error(r.error);
+      const lista = r.perputhjet || [];
+      if (!lista.length){ $('out').innerHTML='<div class="card small">Asnjë përputhje e fortë. Provo ta përshkruash idenë më konkret.</div>'; $('status').innerHTML=''; $('gjej').disabled=false; return; }
+      let html='<div class="card">';
+      for (const p of lista){
+        html += `<div class="row">
+          <div class="note ${cls(p.note)}">${esc(p.note)}/10<small>Përputhje</small></div>
+          <div style="flex:1">
+            <div class="emri">${esc(p.emri)}</div>
+            <div class="tipi">${esc(p.tipi)}</div>
+            <div class="pse">${esc(p.pse)}</div>
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+      $('out').innerHTML = html;
+      $('status').innerHTML='<span class="ok">Mbaroi ✓</span>';
+    } catch(e){ $('status').innerHTML=`<span class="err">Gabim: ${esc(e.message)}</span>`; }
+    $('gjej').disabled=false;
+  }
+
+  $('gjej').addEventListener('click', gjej);
+</script>
+</body>
+</html>
