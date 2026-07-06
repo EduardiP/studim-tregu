@@ -155,4 +155,6 @@ const { createNetoRouter } = require('./fitimi-neto');
 app.use('/neto', createNetoRouter(pool, openai, MODEL));
 const { createPerputhjaRouter } = require('./perputhja');
 app.use('/perputhja', createPerputhjaRouter(pool, openai, MODEL));
+const { createPerzgjedhjaRouter } = require('./perzgjedhja');
+app.use('/perzgjedhja', createPerzgjedhjaRouter(pool, openai, MODEL));
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
