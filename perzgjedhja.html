@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Përzgjedhja — llojet e forta</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --p:#b794f6; --warn:#f0b866; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:960px; margin:0 auto; padding:28px 18px 90px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 10px; margin:14px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .lloj { display:flex; gap:14px; align-items:flex-start; padding:14px 8px; border-bottom:1px solid #20242e; cursor:pointer; }
+  .lloj:hover { background:#1a1e27; }
+  .notes { display:flex; flex-direction:column; gap:6px; min-width:96px; }
+  .note { font-weight:700; font-size:15px; border-radius:8px; padding:5px 6px; text-align:center; }
+  .note small { display:block; font-weight:500; font-size:10px; opacity:.85; text-transform:uppercase; letter-spacing:.03em; }
+  .hi { background:rgba(79,191,133,.15); color:var(--good); }
+  .mid { background:rgba(240,184,102,.15); color:var(--warn); }
+  .lo { background:rgba(154,163,178,.12); color:var(--mut); }
+  .emri { font-weight:600; font-size:16px; }
+  .kat { color:var(--p); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:5px 0; }
+  .chip { font-size:12px; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 9px; color:var(--mut); }
+  .arrow { color:var(--mut); font-size:13px; margin-left:auto; align-self:center; }
+  .nenwrap { padding-left:40px; border-left:2px solid #232833; margin:2px 0 8px 20px; }
+  .nen { display:flex; gap:10px; align-items:flex-start; padding:9px 8px; border-bottom:1px solid #1b1f28; }
+  .nnotes { display:flex; flex-direction:column; gap:4px; min-width:72px; }
+  .nnote { font-weight:700; font-size:12px; border-radius:6px; padding:3px 5px; text-align:center; }
+  .nnote small { display:block; font-weight:500; font-size:8px; opacity:.85; text-transform:uppercase; }
+  .nemri { font-weight:600; font-size:13px; }
+  .nkat { color:var(--p); font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
+  .nchips { display:flex; gap:5px; flex-wrap:wrap; margin:3px 0; }
+  .nchip { font-size:11px; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:1px 7px; color:var(--mut); }
+  .nfakt { font-size:12px; color:var(--mut); margin-top:2px; }
+  .hide { display:none; }
+  .err { color:#ff9a9a; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Përzgjedhja — llojet e forta</h1>
+  <p class="sub">Vetëm llojet me Përputhje 8–10 <b>dhe</b> Fitim neto 8–9. Kliko një lloj për të parë nën-llojet e tij me të gjitha metrikat.</p>
+
+  <div id="out"><div class="card small" style="padding:16px">Po ngarkohet…</div></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
+  const cache = {};
+
+  async function loadLlojet(){
+    try {
+      const llojet = await (await fetch('/perzgjedhja/llojet')).json();
+      if (!Array.isArray(llojet) || !llojet.length){
+        $('out').innerHTML = '<div class="card small" style="padding:16px">Asnjë lloj s\'e plotëson filtrin (Përputhje 8–10 dhe Fitim neto 8–9). Sigurohu që ke llogaritur fitimin neto te /neto.</div>';
+        return;
+      }
+      let html = '<div class="card">';
+      llojet.forEach((L, i) => {
+        html += `<div class="lloj" data-lloj="${esc(L.emri)}" data-i="${i}">
+          <div class="notes">
+            <div class="note ${cls(L.note_pershtatje)}">${esc(L.note_pershtatje)}/10<small>Përputhje</small></div>
+            <div class="note ${cls(L.fitimi_neto)}">${esc(L.fitimi_neto)}/10<small>Fitim neto</small></div>
+          </div>
+          <div style="flex:1">
+            <div class="emri">${esc(L.emri)}</div>
+            <div class="kat">${esc(L.kategoria)}</div>
+            <div class="chips">
+              <span class="chip">${esc(L.tregu)}</span>
+              <span class="chip">Global: ${esc(L.potencial_global)}</span>
+              <span class="chip">Hapësirë: ${esc(L.note_hapesire)}/10</span>
+              <span class="chip">Kulmi: ${esc(L.koha_kulm)}</span>
+            </div>
+          </div>
+          <div class="arrow" id="ar${i}">▾ nën-llojet</div>
+        </div>
+        <div class="nenwrap hide" id="nw${i}"><div class="small" style="padding:8px">…</div></div>`;
+      });
+      html += '</div>';
+      $('out').innerHTML = html;
+
+      document.querySelectorAll('.lloj').forEach(el => {
+        el.addEventListener('click', () => toggleNen(el.getAttribute('data-lloj'), el.getAttribute('data-i')));
+      });
+    } catch(e){ $('out').innerHTML = `<div class="card err" style="padding:16px">S'u ngarkua: ${esc(e.message)}</div>`; }
+  }
+
+  async function toggleNen(llojEmri, i){
+    const wrap = $('nw'+i), ar = $('ar'+i);
+    const po = wrap.classList.contains('hide');
+    wrap.classList.toggle('hide');
+    if (ar) ar.textContent = po ? '▴ nën-llojet' : '▾ nën-llojet';
+    if (!po) return;
+    if (cache[llojEmri]) { renderNen(wrap, cache[llojEmri]); return; }
+    wrap.innerHTML = '<div class="small" style="padding:8px"><span class="spin"></span>Po ngarkohen…</div>';
+    try {
+      const nen = await (await fetch('/perzgjedhja/nendhoje/'+encodeURIComponent(llojEmri))).json();
+      cache[llojEmri] = nen;
+      renderNen(wrap, nen);
+    } catch(e){ wrap.innerHTML = `<div class="small err" style="padding:8px">S'u ngarkuan: ${esc(e.message)}</div>`; }
+  }
+
+  function renderNen(wrap, nen){
+    if (!Array.isArray(nen) || !nen.length){ wrap.innerHTML = '<div class="small" style="padding:8px">Pa nën-lloje të ruajtura për këtë lloj.</div>'; return; }
+    let html = '';
+    for (const n of nen){
+      const studiuar = n.studiuar;
+      html += `<div class="nen">
+        <div class="nnotes">
+          <div class="nnote ${cls(n.potenciali)}">${esc(n.potenciali)}/10<small>Potencial</small></div>
+          ${ studiuar ? `<div class="nnote ${cls(n.hapesira)}">${esc(n.hapesira)}/10<small>Hapësirë</small></div>
+          <div class="nnote ${cls(n.metrika3)}">${esc(n.metrika3)}<small>E treta</small></div>` : '' }
+        </div>
+        <div style="flex:1">
+          <div class="nemri">${esc(n.emri)}</div>
+          <div class="nkat">${esc(n.kategoria)}</div>
+          <div class="nchips">
+            <span class="nchip">${esc(n.tregu)}</span>
+            <span class="nchip">${n.global==='po'?'Global':'Jo-global'}</span>
+            <span class="nchip">Kulmi: ${esc(n.koha_kulm)}</span>
+          </div>
+          ${ studiuar && n.faktoret ? `<div class="nfakt"><b>Hapësira:</b> ${esc(n.faktoret)}</div>` : '' }
+        </div>
+      </div>`;
+    }
+    wrap.innerHTML = html;
+  }
+
+  loadLlojet();
+</script>
+</body>
+</html>
