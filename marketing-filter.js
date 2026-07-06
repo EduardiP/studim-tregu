@@ -22,13 +22,14 @@ const KUSHTET = `PROFILI I BIZNESIT:
 KUFIZIME TE FORTA (nese nje metode i kerkon keto, ajo NUK funksionon per tani):
 - NUK ka entitet ligjor te regjistruar.
 - NUK ka llogari bankare amerikane.
-- Buxhet i vogel: ~100-150 USD/muaj.
+- Buxhet i vogel: ~50-100 USD/muaj.
 - Duhet te jete kryesisht FALAS ose me kosto te ulet.
 - Duhet te jete i AUTOMATIZUESHEM (pa pune manuale nonstop).
+- Duhet te sjell klinet sa me par pa pas nevoj te pres muaj apo vite per rrezultate, pra te ket ekspozim sa me te fort qe ne fillim te marketingut.
  
 PREFERENCA:
-- Pranohen edhe metoda qe sjellin klientE me vonese (jo vetem te menjEhershme), nese jane te qendrueshme.
-- Vlere e larte per metoda qe punojne ne sfond me nderhyrje minimale.
+- Sjellje e lienteve sa me par apo ekspozim i menjehershem pa pas envoj te pres muaj apo vite per rrezultate.
+- Te automatizohet per metoda qe punojne ne sfond me nderhyrje minimale.
 - Mund te shtohet kod (app lidhet me API te Printify/Shopify).`;
  
 function grupo(arr, madhesia) {
