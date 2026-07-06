@@ -143,8 +143,8 @@ Nese nje lloj mbetet vet, ktheje si grup me nje perberes te vetem.` }]
         let np=0, tregu='', pg='', nh=0, kk='', arsye='';
         try {
           const o = await vleresoPotencial(emriRi, kategoria, perberesit);
-          np = Number(o.note_pershtatje)||0; tregu = String(o.tregu||'').slice(0,60);
-          pg = String(o.potencial_global||'').slice(0,60); nh = Number(o.note_hapesire)||0;
+          np = Math.round(Number(o.note_pershtatje)||0); tregu = String(o.tregu||'').slice(0,60);
+          pg = String(o.potencial_global||'').slice(0,60); nh = Math.round(Number(o.note_hapesire)||0);
           kk = String(o.koha_kulm||'').slice(0,80); arsye = String(o.arsye||'').slice(0,1000);
         } catch(e) { /* nje term deshtoi — vazhdo */ }
  
@@ -179,7 +179,7 @@ Ktheji VETEM si JSON array me te njejtin RENDIT, pa markdown. Cdo element:
           const idx = (Number(item.n)||0) - 1;
           if (idx < 0 || idx >= ruajtur.length) continue;
           await pool.query('UPDATE grupe_lloje SET fitimi_neto=$1, neto_arsye=$2 WHERE id=$3',
-            [Number(item.fitimi_neto)||0, String(item.arsye||'').slice(0,600), ruajtur[idx].id]);
+            [Math.round(Number(item.fitimi_neto)||0), String(item.arsye||'').slice(0,600), ruajtur[idx].id]);
         }
       } catch(e) { /* neto deshtoi — vazhdo */ }
  
@@ -231,7 +231,7 @@ Ktheji VETEM si JSON array, pa markdown. Cdo element:
               `INSERT INTO grupe_nendhoje (lloj_emri, kategoria, emri, potenciali, global, tregu, koha_kulm)
                VALUES ($1,$2,$3,$4,$5,$6,$7)`,
               [llojEmri, String(m.kategoria||'').slice(0,200), String(m.emri||'').slice(0,300),
-               Number(m.potenciali)||0, String(m.global||'').slice(0,10),
+               Math.round(Number(m.potenciali)||0), String(m.global||'').slice(0,10),
                String(m.tregu||'').slice(0,60), String(m.koha_kulm||'').slice(0,80)]);
           }
         } catch (e) { /* vazhdo */ }
