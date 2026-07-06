@@ -46,7 +46,15 @@
 <div class="wrap">
   <h1>Përzgjedhja — llojet e forta</h1>
   <p class="sub">Vetëm llojet me Përputhje 8–10 <b>dhe</b> Fitim neto 8–9. Kliko një lloj për të parë nën-llojet e tij me të gjitha metrikat.</p>
+  <div class="card" style="padding:14px 16px;">
+    <div style="font-weight:600; margin-bottom:8px;">Grupimi i llojeve identike (me AI)</div>
+    <button id="grupo">Bashko llojet identike</button>
+    <button id="studjoNen" style="margin-left:8px; background:transparent; color:var(--acc); border:1px solid var(--line);">Studjo nën-llojet e reja</button>
+    <span id="gStatus" class="small" style="margin-left:10px;"></span>
+    <p class="small" style="margin-top:8px;">GPT-5.4 bashkon vetëm ato identike (studion biznesin, jo emrin), pastaj rivlerëson me metrikat si /ide dhe /neto. Ruhet veçmas.</p>
+  </div>
 
+  <div id="grupeOut"></div>
   <div id="out"><div class="card small" style="padding:16px">Po ngarkohet…</div></div>
 </div>
 
