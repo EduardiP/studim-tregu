@@ -155,7 +155,126 @@
     }
     wrap.innerHTML = html;
   }
+  let gtimer=null;
 
+  async function grupo(){
+    if (!confirm('Ky do të bashkojë llojet identike dhe do t\'i rivlerësojë me web search (ka kosto, disa dollarë). Vazhdo?')) return;
+    if (gtimer){ clearInterval(gtimer); gtimer=null; }
+    $('grupo').disabled=true;
+    $('gStatus').innerHTML='<span class="spin"></span>Po bashkon…';
+    try {
+      const { run, error } = await (await fetch('/perzgjedhja/grupim/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      gtimer = setInterval(async () => {
+        try {
+          const j = await (await fetch('/perzgjedhja/grupim/status/'+run)).json();
+          if (j.status==='po_punon'){ $('gStatus').innerHTML=`<span class="spin"></span>${esc(j.faza||'')} ${esc(j.progres||'')}`; }
+          else if (j.status==='gati'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML='<span style="color:var(--good)">Mbaroi ✓</span>'; $('grupo').disabled=false; loadGrupe(); }
+          else if (j.status==='gabim'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML=`<span class="err">${esc(j.error)}</span>`; $('grupo').disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML='<span class="err">Humbi.</span>'; $('grupo').disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ $('gStatus').innerHTML=`<span class="err">${esc(e.message)}</span>`; $('grupo').disabled=false; }
+  }
+
+  async function studjoNen(){
+    if (!confirm('Ky do të gjejë nën-llojet e termave të rinj me web search (ka kosto). Vazhdo?')) return;
+    if (gtimer){ clearInterval(gtimer); gtimer=null; }
+    $('studjoNen').disabled=true;
+    $('gStatus').innerHTML='<span class="spin"></span>Po studion nën-llojet…';
+    try {
+      const { run, error } = await (await fetch('/perzgjedhja/grupim/nendhoje/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      gtimer = setInterval(async () => {
+        try {
+          const j = await (await fetch('/perzgjedhja/grupim/nendhoje/status/'+run)).json();
+          if (j.status==='po_punon'){ $('gStatus').innerHTML=`<span class="spin"></span>Nën-llojet… ${esc(j.progres||'')}`; }
+          else if (j.status==='gati'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML='<span style="color:var(--good)">Mbaroi ✓</span>'; $('studjoNen').disabled=false; loadGrupe(); }
+          else if (j.status==='gabim'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML=`<span class="err">${esc(j.error)}</span>`; $('studjoNen').disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(gtimer); gtimer=null; $('gStatus').innerHTML='<span class="err">Humbi.</span>'; $('studjoNen').disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ $('gStatus').innerHTML=`<span class="err">${esc(e.message)}</span>`; $('studjoNen').disabled=false; }
+  }
+
+  const gcache = {};
+  async function loadGrupe(){
+    try {
+      const llojet = await (await fetch('/perzgjedhja/grupim/llojet')).json();
+      if (!Array.isArray(llojet) || !llojet.length){ $('grupeOut').innerHTML=''; return; }
+      let totalNen = 0;
+      for (const L of llojet){
+        try { const n = await (await fetch('/perzgjedhja/grupim/nendhoje/'+encodeURIComponent(L.emri))).json(); gcache[L.emri]=n; totalNen += Array.isArray(n)?n.length:0; } catch(e){}
+      }
+      let html = `<div class="card" style="background:#1c1530; border-color:#3a2a5a; padding:14px 16px; display:flex; gap:24px;">
+        <div><div style="font-size:26px; font-weight:700; color:#b794f6">${llojet.length}</div><div class="small">terma të bashkuar</div></div>
+        <div><div style="font-size:26px; font-weight:700; color:#b794f6">${totalNen}</div><div class="small">nën-lloje të reja</div></div>
+      </div>`;
+      html += '<div class="card" style="background:#1c1530; border-color:#3a2a5a;">';
+      llojet.forEach((L, i) => {
+        const subs = gcache[L.emri] || [];
+        html += `<div class="lloj" data-gi="${i}" data-glloj="${esc(L.emri)}" style="background:transparent;">
+          <div class="notes">
+            <div class="note ${cls(L.note_pershtatje)}">${esc(L.note_pershtatje)}/10<small>Përputhje</small></div>
+            <div class="note ${cls(L.fitimi_neto)}">${esc(L.fitimi_neto)}/10<small>Fitim neto</small></div>
+          </div>
+          <div style="flex:1">
+            <div class="emri">${esc(L.emri)}</div>
+            <div class="kat">${esc(L.kategoria)}</div>
+            <div class="chips">
+              <span class="chip">${esc(L.tregu)}</span>
+              <span class="chip">Global: ${esc(L.potencial_global)}</span>
+              <span class="chip">Hapësirë: ${esc(L.note_hapesire)}/10</span>
+              <span class="chip">Kulmi: ${esc(L.koha_kulm)}</span>
+            </div>
+            ${ L.perberesit ? `<div class="small" style="margin-top:4px; color:#9a86c0">Përfshin: ${esc(L.perberesit)}</div>` : '' }
+          </div>
+          <div class="arrow" id="gar${i}">${subs.length?'▾ '+subs.length+' nën-lloje':'—'}</div>
+        </div>
+        <div class="nenwrap hide" id="gnw${i}" style="border-left-color:#3a2a5a;"></div>`;
+      });
+      html += '</div>';
+      $('grupeOut').innerHTML = html;
+
+      document.querySelectorAll('[data-gi]').forEach(el => {
+        el.addEventListener('click', () => {
+          const i = el.getAttribute('data-gi'), L = el.getAttribute('data-glloj');
+          const wrap = $('gnw'+i), ar = $('gar'+i);
+          const po = wrap.classList.contains('hide');
+          wrap.classList.toggle('hide');
+          if (ar && ar.textContent.startsWith('▾')) ar.textContent = ar.textContent.replace('▾','▴');
+          else if (ar && ar.textContent.startsWith('▴')) ar.textContent = ar.textContent.replace('▴','▾');
+          if (!po) return;
+          const nen = gcache[L] || [];
+          if (!nen.length){ wrap.innerHTML='<div class="small" style="padding:8px">Pa nën-lloje ende. Kliko "Studjo nën-llojet e reja".</div>'; return; }
+          let h='';
+          for (const n of nen){
+            h += `<div class="nen">
+              <div class="nnotes">
+                <div class="nnote ${cls(n.potenciali)}">${esc(n.potenciali)}/10<small>Potencial</small></div>
+                ${ n.studiuar ? `<div class="nnote ${cls(n.hapesira)}">${esc(n.hapesira)}/10<small>Hapësirë</small></div><div class="nnote ${cls(n.metrika3)}">${esc(n.metrika3)}<small>E treta</small></div>` : '' }
+              </div>
+              <div style="flex:1">
+                <div class="nemri">${esc(n.emri)}</div>
+                <div class="nkat">${esc(n.kategoria)}</div>
+                <div class="nchips">
+                  <span class="nchip">${esc(n.tregu)}</span>
+                  <span class="nchip">${n.global==='po'?'Global':'Jo-global'}</span>
+                  <span class="nchip">Kulmi: ${esc(n.koha_kulm)}</span>
+                </div>
+                ${ n.studiuar && n.faktoret ? `<div class="nfakt"><b>Hapësira:</b> ${esc(n.faktoret)}</div>` : '' }
+              </div>
+            </div>`;
+          }
+          wrap.innerHTML = h;
+        });
+      });
+    } catch(e){ $('grupeOut').innerHTML=`<div class="card err">${esc(e.message)}</div>`; }
+  }
+
+  $('grupo').addEventListener('click', grupo);
+  $('studjoNen').addEventListener('click', studjoNen);
+  loadGrupe();
   loadLlojet();
 </script>
 </body>
