@@ -163,4 +163,6 @@ const { createKategoriaRouter } = require('./kategoria');
 app.use('/kategoria', createKategoriaRouter(pool, openai, MODEL));
 const { createPerfundimiRouter } = require('./perfundimi');
 app.use('/perfundimi', createPerfundimiRouter(pool));
+const { attachHapesiraRoutes } = require('./hapesira');
+attachHapesiraRoutes(app, pool, openai);
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
