@@ -88,7 +88,12 @@
           </div>
           <div class="arrow">${ bashkuar && subs.length ? '▾ '+subs.length+' nën-lloje' : '' }</div>
         </div>
-        <div class="nenwrap hide" id="nw${i}"></div>`;
+        <div style="margin:4px 0 0 40px;">
+          <button class="hap-btn" data-lloj="${esc(r.emri)}" data-hi="${i}" style="font-size:13px;padding:6px 12px;background:transparent;color:var(--acc);border:1px solid var(--line);border-radius:8px;">Studjo hapësirën e nën-llojeve</button>
+          <span class="hap-status small" id="hs${i}" style="margin-left:8px;"></span>
+        </div>
+        <div class="nenwrap hide" id="nw${i}"></div>
+        <div id="hap${i}" style="margin:6px 0 0 40px;"></div>`;
       });
       html += '</div>';
       $('out').innerHTML = html;
