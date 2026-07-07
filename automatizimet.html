@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automatizimet — nga më i miri</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --warn:#f0b866; --p:#b794f6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .err { color:#ff9a9a; }
+  .item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid #20242e; align-items:flex-start; }
+  .nr { min-width:28px; text-align:center; font-size:16px; font-weight:700; color:var(--mut); padding-top:8px; }
+  .pike { min-width:64px; text-align:center; }
+  .pike .n { font-size:24px; font-weight:700; line-height:1; }
+  .pike .l { font-size:10px; color:var(--mut); }
+  .hi { color:var(--good); } .mid { color:var(--warn); } .lo { color:var(--mut); }
+  .pershkrim { font-size:14px; }
+  .nendhoj { margin-top:6px; font-size:12px; }
+  .tag { display:inline-block; background:rgba(110,168,254,.12); color:var(--acc); border-radius:20px; padding:1px 10px; margin-right:4px; }
+  .tag-term { background:rgba(183,148,246,.12); color:var(--p); }
+  .ekz { font-size:12px; color:var(--mut); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Automatizimet — nga më i miri te më i keqi</h1>
+  <p class="sub">Të gjitha boshllëqet e automatizimit nga çdo nën-lloj i studiuar, të renditura sipas notës. Poshtë secilit tregohet te cili nën-lloj (dhe term) bën pjesë.</p>
+  <div id="out"><div class="card small">Po ngarkohet…</div></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=60?'hi':(n>=30?'mid':'lo'); };
+
+  async function load() {
+    try {
+      const rows = await (await fetch('/automatizimet/lista')).json();
+      if (!Array.isArray(rows) || !rows.length) {
+        $('out').innerHTML = '<div class="card small">Asnjë automatizim i studiuar ende. Shko te /perfundimi dhe studjo hapësirën e një termi.</div>';
+        return;
+      }
+      let html = `<div class="card" style="display:flex;gap:24px;align-items:center;">
+        <div><div style="font-size:26px;font-weight:700;color:var(--acc)">${rows.length}</div><div class="small">boshllëqe automatizimi</div></div>
+      </div><div class="card">`;
+      let nr = 0;
+      for (const r of rows) {
+        nr++;
+        html += `<div class="item">
+          <div class="nr">${nr}</div>
+          <div class="pike"><div class="n ${cls(r.vleresim)}">${esc(r.vleresim)}</div><div class="l">/100</div></div>
+          <div style="flex:1">
+            <div class="pershkrim">${esc(r.pershkrim)}</div>
+            <div class="nendhoj">
+              <span class="tag">${esc(r.nendhoj_emri)}</span>
+              <span class="tag tag-term">${esc(r.lloj_emri)}</span>
+            </div>
+            ${ r.ekziston && String(r.ekziston).toLowerCase()!=='jo' ? `<div class="ekz">Ekziston: ${esc(r.ekziston)}</div>` : '' }
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+      $('out').innerHTML = html;
+    } catch(e) { $('out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+  }
+  load();
+</script>
+</body>
+</html>
