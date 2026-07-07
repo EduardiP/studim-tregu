@@ -94,6 +94,7 @@
         const pikeHtml = (p==null) ? '<div class="n" style="color:var(--mut)">—</div><div class="l">pa notë</div>'
           : `<div class="n ${clsPike(p)}">${esc(p)}</div><div class="l">/20 kategori</div>`;
         html += `<div class="lloj">
+          <div style="min-width:28px;text-align:center;font-size:18px;font-weight:700;color:var(--mut);padding-top:4px;">${nr}</div>
           <div class="pike">${pikeHtml}</div>
           <div style="flex:1">
             <div class="emri">${esc(r.emri)}</div>
