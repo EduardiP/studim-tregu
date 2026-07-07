@@ -78,14 +78,22 @@ function createPerfundimiRouter(pool) {
             nendhojet: nen
           });
         } else {
-          // s'u bashkua -> shfaqe si te /kategoria (origjinal)
+          // s'u bashkua -> shfaqe si te /kategoria (origjinal), me nen-llojet nga ide_nendhoje
+          let nen = [];
+          try {
+            const rn = await pool.query(
+              `SELECT emri, kategoria, potenciali, global, tregu, koha_kulm, hapesira, metrika3
+               FROM ide_nendhoje WHERE lloj_emri=$1
+               ORDER BY COALESCE(metrika3, potenciali) DESC, potenciali DESC, id`, [lloj.emri]);
+            nen = rn.rows;
+          } catch(e) { nen = []; }
           rezultat.push({
             tip: 'origjinal',
             emri: lloj.emri, kategoria: lloj.kategoria,
             note_pershtatje: lloj.note_pershtatje, tregu: lloj.tregu,
             potencial_global: lloj.potencial_global, note_hapesire: lloj.note_hapesire,
             koha_kulm: lloj.koha_kulm, fitimi_neto: lloj.fitimi_neto,
-            nendhojet: []
+            nendhojet: nen
           });
         }
       }
