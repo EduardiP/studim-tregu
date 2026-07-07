@@ -115,8 +115,23 @@
     } catch (e) { $('out').innerHTML = `<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`; }
   }
 
+  async function merrFundit() {
+    try {
+      const { run } = await (await fetch('/filter/fundit')).json();
+      if (run) {
+        runId = run;
+        loadRezultat();
+      } else {
+        $('out').innerHTML = '<div class="card small">Ende s\'ka rezultat. Kliko "Nis filtrimin".</div>';
+      }
+    } catch (e) {
+      $('out').innerHTML = `<div class="card err">S'u ngarkua: ${esc(e.message)}</div>`;
+    }
+  }
+
   $('nis').addEventListener('click', nis);
-  $('refresh').addEventListener('click', loadRezultat);
+  $('refresh').addEventListener('click', merrFundit);
+  merrFundit();
 </script>
 </body>
 </html>
