@@ -159,4 +159,6 @@ const { createPerzgjedhjaRouter } = require('./perzgjedhja');
 app.use('/perzgjedhja', createPerzgjedhjaRouter(pool, openai, MODEL));
 const { attachGrupimRoutes } = require('./grupimi');
 attachGrupimRoutes(app, pool, openai);
+const { createKategoriaRouter } = require('./kategoria');
+app.use('/kategoria', createKategoriaRouter(pool, openai, MODEL));
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
