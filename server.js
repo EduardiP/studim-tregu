@@ -161,4 +161,6 @@ const { attachGrupimRoutes } = require('./grupimi');
 attachGrupimRoutes(app, pool, openai);
 const { createKategoriaRouter } = require('./kategoria');
 app.use('/kategoria', createKategoriaRouter(pool, openai, MODEL));
+const { createPerfundimiRouter } = require('./perfundimi');
+app.use('/perfundimi', createPerfundimiRouter(pool));
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
