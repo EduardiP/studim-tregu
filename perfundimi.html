@@ -127,6 +127,8 @@
     const hb = e.target.closest('.hap-btn');
     if (hb) { e.stopPropagation(); nisHapesire(hb.getAttribute('data-lloj'), hb.getAttribute('data-hi')); return; }
 
+    // klik brenda hapesirave -> mos bej asgje (lejo kopjimin)
+    if (e.target.closest('.hapwrap')) { e.stopPropagation(); return; }
     const nen = e.target.closest('.nen');
     if (nen) { e.stopPropagation(); toggleNen(nen); return; }
 
