@@ -14,7 +14,8 @@
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 18px; margin:12px 0; }
   .small { font-size:13px; color:var(--mut); }
   .err { color:#ff9a9a; }
-  .lloj { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #20242e; cursor:pointer; }
+  .lloj { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #20242e; }
+  .lloj.klik { cursor:pointer; }
   .nr { min-width:26px; text-align:center; font-size:18px; font-weight:700; color:var(--mut); padding-top:2px; }
   .notes { display:flex; flex-direction:column; gap:6px; min-width:96px; }
   .note { font-weight:700; font-size:15px; border-radius:8px; padding:4px 6px; text-align:center; }
@@ -31,17 +32,23 @@
   .arrow { color:var(--mut); font-size:13px; padding-top:4px; }
   .nenwrap { margin:6px 0 0 40px; border-left:2px solid #3a2a5a; padding-left:14px; }
   .hide { display:none; }
-  .nen { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #1a1d25; }
+  .nen { padding:8px 0; border-bottom:1px solid #1a1d25; cursor:pointer; }
+  .nen-head { display:flex; gap:10px; align-items:flex-start; }
   .nnote { font-weight:700; font-size:13px; border-radius:6px; padding:2px 5px; text-align:center; min-width:52px; }
   .nnote small { display:block; font-weight:500; font-size:9px; opacity:.8; }
   .nemri { font-weight:600; font-size:14px; }
   .bg-bashkuar { background:#1c1530; border-color:#3a2a5a; }
+  .hapwrap { margin:8px 0 4px 20px; }
+  .hap-card { background:#0b0d12; border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .hbtn { font-size:12px; padding:5px 10px; background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Përfundimi — llojet 20/20 të kategorisë</h1>
-  <p class="sub">Vetëm llojet që morën 20/20 te /kategoria. Ata që u bashkuan te /perzgjedhja shfaqen si një term i vetëm (me sfond vjollcë) me nën-llojet e reja; të tjerët shfaqen si te /kategoria. Kliko një term të bashkuar për nën-llojet.</p>
+  <p class="sub">Kliko një term për nën-llojet. Kliko një nën-lloj për hapësirat e tij (nëse janë studiuar). Studimi i hapësirës bëhet me butonin te secili term.</p>
 
   <div id="out"><div class="card small" style="padding:16px">Po ngarkohet…</div></div>
 </div>
@@ -50,14 +57,20 @@
   const $ = id => document.getElementById(id);
   const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
+  const cls100 = n => { n=Number(n)||0; return n>=60?'hi':(n>=30?'mid':'lo'); };
+
+  let ROWS = [];
+  const hapCache = {}; // lloj_emri -> { nendhoj_emri -> {automatizim, monetizim, ...} }
+  const hapTimers = {};
 
   async function load() {
     try {
       const rows = await (await fetch('/perfundimi/lloje')).json();
       if (!Array.isArray(rows) || !rows.length) {
-        $('out').innerHTML = '<div class="card small" style="padding:16px">Asnjë lloj 20/20. Sigurohu që ke gjeneruar te /kategoria.</div>';
+        $('out').innerHTML = '<div class="card small" style="padding:16px">Asnjë lloj 20/20. Gjenero te /kategoria.</div>';
         return;
       }
+      ROWS = rows;
       const nrBashkuar = rows.filter(r => r.tip==='bashkuar').length;
       let html = `<div class="card" style="display:flex;gap:24px;align-items:center;padding:14px 18px;">
         <div><div style="font-size:26px;font-weight:700;color:var(--acc)">${rows.length}</div><div class="small">terma gjithsej</div></div>
@@ -69,7 +82,7 @@
         nr++;
         const bashkuar = r.tip==='bashkuar';
         const subs = r.nendhojet || [];
-        html += `<div class="lloj ${bashkuar?'bg-bashkuar':''}" data-i="${i}" style="${bashkuar?'padding-left:8px;padding-right:8px;border-radius:8px;':''}">
+        html += `<div class="lloj ${bashkuar?'bg-bashkuar':''} ${subs.length?'klik':''}" data-i="${i}" style="${bashkuar?'padding-left:8px;padding-right:8px;border-radius:8px;':''}">
           <div class="nr">${nr}</div>
           <div class="notes">
             <div class="note ${cls(r.note_pershtatje)}">${esc(r.note_pershtatje)}/10<small>Përputhje</small></div>
@@ -85,58 +98,114 @@
               <span class="chip">Kulmi: ${esc(r.koha_kulm)}</span>
             </div>
             ${ bashkuar && r.perberesit ? `<div class="perb">Përfshin: ${esc(r.perberesit)}</div>` : '' }
+            <div style="margin-top:6px;">
+              <button class="hbtn hap-btn" data-lloj="${esc(r.emri)}" data-hi="${i}" style="color:var(--acc);">Studjo hapësirën</button>
+              <span class="small" id="hs${i}" style="margin-left:8px;"></span>
+            </div>
           </div>
-          <div class="arrow">${ bashkuar && subs.length ? '▾ '+subs.length+' nën-lloje' : '' }</div>
+          <div class="arrow">${ subs.length ? '▾ '+subs.length+' nën-lloje' : '' }</div>
         </div>
-        <div style="margin:4px 0 0 40px;">
-          <button class="hap-btn" data-lloj="${esc(r.emri)}" data-hi="${i}" style="font-size:13px;padding:6px 12px;background:transparent;color:var(--acc);border:1px solid var(--line);border-radius:8px;">Studjo hapësirën e nën-llojeve</button>
-          <span class="hap-status small" id="hs${i}" style="margin-left:8px;"></span>
-        </div>
-        <div class="nenwrap hide" id="nw${i}"></div>
-        <div id="hap${i}" style="margin:6px 0 0 40px;"></div>`;
+        <div class="nenwrap hide" id="nw${i}"></div>`;
       });
       html += '</div>';
       $('out').innerHTML = html;
 
-      // Klik per te hapur nen-llojet (vetem per te bashkuarit me nen-lloje)
-      document.querySelectorAll('[data-i]').forEach(el => {
-        el.addEventListener('click', () => {
-          const i = el.getAttribute('data-i');
-          const r = rows[i];
-          if (r.tip !== 'bashkuar' || !(r.nendhojet||[]).length) return;
-          const wrap = $('nw'+i);
-          wrap.classList.toggle('hide');
-          if (wrap.innerHTML) return;
-          let h = '';
-          for (const n of r.nendhojet) {
-            h += `<div class="nen">
-              <div style="display:flex;gap:6px;">
-                <div class="nnote ${cls(n.potenciali)}">${esc(n.potenciali)}/10<small>Potencial</small></div>
-                ${ n.hapesira ? `<div class="nnote ${cls(n.hapesira)}">${esc(n.hapesira)}/10<small>Hapësirë</small></div>` : '' }
-              </div>
-              <div style="flex:1">
-                <div class="nemri">${esc(n.emri)}</div>
-                <div class="kat">${esc(n.kategoria)}</div>
-                <div class="chips">
-                  <span class="chip">${esc(n.tregu)}</span>
-                  <span class="chip">${n.global==='po'?'Global':'Jo-global'}</span>
-                  <span class="chip">Kulmi: ${esc(n.koha_kulm)}</span>
-                </div>
-              </div>
-            </div>`;
-          }
-          wrap.innerHTML = h;
-        });
-      });
+      // Ngarko hapesirat e ruajtura per cdo term (pa kosto), qe nen-llojet t'i kene gati
+      for (const r of rows) {
+        try {
+          const hrows = await (await fetch('/perfundimi/hapesira/'+encodeURIComponent(r.emri))).json();
+          const map = {};
+          if (Array.isArray(hrows)) for (const h of hrows) map[h.nendhoj_emri] = h;
+          hapCache[r.emri] = map;
+        } catch(e) { hapCache[r.emri] = {}; }
+      }
     } catch(e) { $('out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
   }
-  // ===== Studimi i hapesires =====
-  const hapTimers = {};
+
+  // Klik mbi term -> hap nen-llojet
+  document.addEventListener('click', (e) => {
+    const hb = e.target.closest('.hap-btn');
+    if (hb) { e.stopPropagation(); nisHapesire(hb.getAttribute('data-lloj'), hb.getAttribute('data-hi')); return; }
+
+    const nen = e.target.closest('.nen');
+    if (nen) { e.stopPropagation(); toggleNen(nen); return; }
+
+    const el = e.target.closest('.lloj.klik');
+    if (el) {
+      const i = el.getAttribute('data-i');
+      const r = ROWS[i];
+      if (!(r.nendhojet||[]).length) return;
+      const wrap = $('nw'+i);
+      wrap.classList.toggle('hide');
+      if (wrap.dataset.done) return;
+      wrap.dataset.done = '1';
+      const map = hapCache[r.emri] || {};
+      let h = '';
+      r.nendhojet.forEach((n, k) => {
+        const hap = map[n.emri];
+        h += `<div class="nen" data-term="${esc(r.emri)}" data-nen="${esc(n.emri)}">
+          <div class="nen-head">
+            <div style="display:flex;gap:6px;">
+              <div class="nnote ${cls(n.potenciali)}">${esc(n.potenciali)}/10<small>Potencial</small></div>
+              ${ hap ? `<div class="nnote ${cls100(hap.vleresim_pergjithshem)}">${esc(hap.vleresim_pergjithshem)}/100<small>Hapësirë</small></div>` : '' }
+            </div>
+            <div style="flex:1">
+              <div class="nemri">${esc(n.emri)}</div>
+              <div class="kat">${esc(n.kategoria)}</div>
+              <div class="chips">
+                <span class="chip">${esc(n.tregu)}</span>
+                <span class="chip">${n.global==='po'?'Global':'Jo-global'}</span>
+                <span class="chip">Kulmi: ${esc(n.koha_kulm)}</span>
+                ${ hap ? '<span class="chip" style="color:var(--good)">▾ hapësirat</span>' : '<span class="chip">pa hapësira ende</span>' }
+              </div>
+            </div>
+          </div>
+          <div class="hapwrap hide" id="hw-${i}-${k}"></div>
+        </div>`;
+      });
+      wrap.innerHTML = h;
+    }
+  });
+
+  function toggleNen(nenEl) {
+    const term = nenEl.getAttribute('data-term');
+    const nen = nenEl.getAttribute('data-nen');
+    const box = nenEl.querySelector('.hapwrap');
+    if (!box) return;
+    box.classList.toggle('hide');
+    if (box.dataset.done) return;
+    const map = hapCache[term] || {};
+    const hap = map[nen];
+    if (!hap) { box.innerHTML = '<div class="small">Pa hapësira ende — kliko "Studjo hapësirën" te termi.</div>'; box.dataset.done='1'; return; }
+    box.dataset.done = '1';
+    box.innerHTML = `<div class="hap-card">
+      <div class="small" style="margin-bottom:8px;">${esc(hap.pershkrim_kryesor)}</div>
+      <div style="display:flex;gap:12px;">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px;color:var(--acc);margin-bottom:6px;">AUTOMATIZIM</div>
+          ${ (hap.automatizim||[]).map(hapRresht).join('') || '<div class="small">—</div>' }
+        </div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px;color:var(--good);margin-bottom:6px;">VLERË MONETARE</div>
+          ${ (hap.monetizim||[]).map(hapRresht).join('') || '<div class="small">—</div>' }
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function hapRresht(x){
+    const v = Number(x.vleresim)||0;
+    const c = v>=60?'var(--good)':(v>=30?'var(--warn)':'var(--mut)');
+    return `<div style="border-left:2px solid ${c};padding:4px 0 4px 8px;margin-bottom:6px;">
+      <div style="font-size:13px;">${esc(x.pershkrim)}</div>
+      <div class="small"><b style="color:${c}">${esc(x.vleresim)}/100</b>${ x.ekziston && String(x.ekziston).toLowerCase()!=='jo' ? ' · Ekziston: '+esc(x.ekziston) : '' }</div>
+    </div>`;
+  }
 
   async function nisHapesire(lloj, i) {
     const btn = document.querySelector(`.hap-btn[data-hi="${i}"]`);
     const st = $('hs'+i);
-    if (!confirm('Studimi i hapësirës bën kërkime me web search për çdo nën-lloj (ka kosto). Vazhdo?')) return;
+    if (!confirm('Studimi bën kërkime me web search për çdo nën-lloj (ka kosto). Vazhdo?')) return;
     if (btn) btn.disabled = true;
     st.innerHTML = '<span class="spin"></span>Po nis…';
     try {
@@ -147,7 +216,7 @@
         try {
           const j = await (await fetch('/perfundimi/hapesira/status/'+run)).json();
           if (j.status==='po_punon'){ st.innerHTML=`<span class="spin"></span>${esc(j.faza||'')} ${esc(j.progres||'')}`; }
-          else if (j.status==='gati'){ clearInterval(hapTimers[i]); st.innerHTML='<span style="color:var(--good)">Mbaroi ✓</span>'; if(btn) btn.disabled=false; shfaqHapesire(lloj, i); }
+          else if (j.status==='gati'){ clearInterval(hapTimers[i]); st.innerHTML='<span style="color:var(--good)">Mbaroi ✓ — rifresko për t\'i parë</span>'; if(btn) btn.disabled=false; }
           else if (j.status==='gabim'){ clearInterval(hapTimers[i]); st.innerHTML=`<span class="err">${esc(j.error)}</span>`; if(btn) btn.disabled=false; }
           else if (j.status==='pa_gjetur'){ clearInterval(hapTimers[i]); st.innerHTML='<span class="err">Humbi.</span>'; if(btn) btn.disabled=false; }
         } catch(e){}
@@ -155,47 +224,6 @@
     } catch(e){ st.innerHTML=`<span class="err">${esc(e.message)}</span>`; if(btn) btn.disabled=false; }
   }
 
-  async function shfaqHapesire(lloj, i) {
-    const box = $('hap'+i);
-    try {
-      const rows = await (await fetch('/perfundimi/hapesira/'+encodeURIComponent(lloj))).json();
-      if (!Array.isArray(rows) || !rows.length){ box.innerHTML='<div class="small">Pa rezultate.</div>'; return; }
-      let h = '';
-      for (const nd of rows) {
-        h += `<div class="card" style="margin:8px 0;padding:12px 14px;">
-          <div style="display:flex;gap:10px;align-items:center;">
-            <div class="note ${nd.vleresim_pergjithshem>=60?'hi':(nd.vleresim_pergjithshem>=30?'mid':'lo')}" style="min-width:56px;">${esc(nd.vleresim_pergjithshem)}/100<small>Hapësirë</small></div>
-            <div style="flex:1"><div class="emri" style="font-size:15px;">${esc(nd.nendhoj_emri)}</div><div class="small">${esc(nd.pershkrim_kryesor)}</div></div>
-          </div>
-          <div style="display:flex;gap:12px;margin-top:10px;">
-            <div style="flex:1">
-              <div style="font-weight:600;font-size:13px;color:var(--acc);margin-bottom:6px;">AUTOMATIZIM</div>
-              ${ (nd.automatizim||[]).map(x => hapRresht(x)).join('') || '<div class="small">—</div>' }
-            </div>
-            <div style="flex:1">
-              <div style="font-weight:600;font-size:13px;color:var(--good);margin-bottom:6px;">VLERË MONETARE</div>
-              ${ (nd.monetizim||[]).map(x => hapRresht(x)).join('') || '<div class="small">—</div>' }
-            </div>
-          </div>
-        </div>`;
-      }
-      box.innerHTML = h;
-    } catch(e){ box.innerHTML = `<div class="small err">${esc(e.message)}</div>`; }
-  }
-
-  function hapRresht(x){
-    const v = Number(x.vleresim)||0;
-    const c = v>=60?'var(--good)':(v>=30?'var(--warn)':'var(--mut)');
-    return `<div style="border-left:2px solid ${c};padding:4px 0 4px 8px;margin-bottom:6px;">
-      <div style="font-size:13px;">${esc(x.pershkrim)}</div>
-      <div class="small"><b style="color:${c}">${esc(x.vleresim)}/100</b>${ x.ekziston && x.ekziston.toLowerCase()!=='jo' ? ' · Ekziston: '+esc(x.ekziston) : '' }</div>
-    </div>`;
-  }
-
-  document.addEventListener('click', (e) => {
-    const b = e.target.closest('.hap-btn');
-    if (b) { e.stopPropagation(); nisHapesire(b.getAttribute('data-lloj'), b.getAttribute('data-hi')); }
-  });
   load();
 </script>
 </body>
