@@ -165,4 +165,6 @@ const { createPerfundimiRouter } = require('./perfundimi');
 app.use('/perfundimi', createPerfundimiRouter(pool));
 const { attachHapesiraRoutes } = require('./hapesira');
 attachHapesiraRoutes(app, pool, openai);
+const { createAutomatizimetRouter } = require('./automatizimet');
+app.use('/automatizimet', createAutomatizimetRouter(pool));
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
