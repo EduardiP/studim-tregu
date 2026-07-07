@@ -82,8 +82,14 @@
     try {
       const rows = await (await fetch('/kategoria/lloje')).json();
       if (!Array.isArray(rows) || !rows.length) { $('out').innerHTML='<div class="card small">Asnjë lloj. Kliko "Gjej".</div>'; return; }
-      let html = '<div class="card">';
+      let html = `<div class="card" style="display:flex;gap:24px;align-items:center;padding:14px 18px;">
+        <div><div style="font-size:26px;font-weight:700;color:var(--acc)">${rows.length}</div><div class="small">lloje gjithsej</div></div>
+        <div><div style="font-size:26px;font-weight:700;color:var(--good)">${rows.filter(r=>Number(r.pike)>=15).length}</div><div class="small">brenda kategorisë (15–20)</div></div>
+      </div>
+      <div class="card">`;
+      let nr = 0;
       for (const r of rows) {
+        nr++;
         const p = r.pike;
         const pikeHtml = (p==null) ? '<div class="n" style="color:var(--mut)">—</div><div class="l">pa notë</div>'
           : `<div class="n ${clsPike(p)}">${esc(p)}</div><div class="l">/20 kategori</div>`;
