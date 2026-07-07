@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kategoria — platformë-shërbim</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --warn:#f0b866; --bad:#ff9a9a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  button { background:var(--acc); color:#06122b; border:0; border-radius:10px; padding:11px 18px; font-size:15px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:16px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .err { color:var(--bad); }
+  .ok { color:var(--good); }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .lloj { display:flex; gap:16px; padding:14px 0; border-bottom:1px solid var(--line); align-items:flex-start; }
+  .pike { min-width:64px; text-align:center; }
+  .pike .n { font-size:26px; font-weight:700; line-height:1; }
+  .pike .l { font-size:11px; color:var(--mut); }
+  .hi { color:var(--good); } .mid { color:var(--warn); } .lo { color:var(--bad); }
+  .emri { font-weight:600; }
+  .kat { font-size:13px; color:var(--mut); margin-bottom:4px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .chip { background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:1px 9px; font-size:12px; color:var(--mut); }
+  .arsye { font-size:13px; color:var(--txt); margin-top:6px; }
+  .mets { display:flex; gap:10px; margin-top:4px; }
+  .met { text-align:center; background:#0b0d12; border:1px solid var(--line); border-radius:8px; padding:4px 8px; }
+  .met .v { font-weight:600; font-size:14px; }
+  .met .k { font-size:10px; color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kategoria — platformë-shërbim</h1>
+  <p class="sub">Jep secilit lloj një notë 1–20 sa i përket kategorisë (platformë ku paguan për funksionin — lidhje, krijim, akses te të dhëna; s'shet asgjë), pranë të gjitha metrikave nga /ide. Renditur nga nota e kategorisë.</p>
+
+  <div class="card">
+    <button id="nis">Gjej sa i përket kategorisë</button>
+    <span id="status" class="small" style="margin-left:10px;"></span>
+    <p class="small" style="margin-top:8px;">GPT-5.4 Mini, një thirrje, pa web search. Fshin të vjetrat dhe gjeneron të reja. Ruhet veçmas (s'prek /ide).</p>
+  </div>
+
+  <div id="out"><div class="card small" style="padding:16px">Po ngarkohet…</div></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  let timer = null, runId = null;
+
+  function clsPike(p){ p=Number(p)||0; return p>=15?'hi':(p>=8?'mid':'lo'); }
+
+  async function nis() {
+    if (timer) { clearInterval(timer); timer=null; }
+    $('nis').disabled = true;
+    $('status').innerHTML = '<span class="spin"></span>Po vlerëson…';
+    try {
+      const { run, error } = await (await fetch('/kategoria/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).json();
+      if (error || !run) throw new Error(error || 'S\'u nis dot.');
+      runId = run;
+      timer = setInterval(check, 2500);
+    } catch(e) { $('status').innerHTML = `<span class="err">${esc(e.message)}</span>`; $('nis').disabled=false; }
+  }
+
+  async function check() {
+    if (!runId) return;
+    try {
+      const j = await (await fetch('/kategoria/status/'+runId)).json();
+      if (j.status === 'gati') { clearInterval(timer); timer=null; $('status').innerHTML='<span class="ok">Mbaroi ✓</span>'; $('nis').disabled=false; loadLloje(); }
+      else if (j.status === 'gabim') { clearInterval(timer); timer=null; $('status').innerHTML=`<span class="err">${esc(j.error)}</span>`; $('nis').disabled=false; }
+      else if (j.status === 'pa_gjetur') { clearInterval(timer); timer=null; $('status').innerHTML='<span class="err">Humbi.</span>'; $('nis').disabled=false; }
+    } catch(e) {}
+  }
+
+  async function loadLloje() {
+    try {
+      const rows = await (await fetch('/kategoria/lloje')).json();
+      if (!Array.isArray(rows) || !rows.length) { $('out').innerHTML='<div class="card small">Asnjë lloj. Kliko "Gjej".</div>'; return; }
+      let html = '<div class="card">';
+      for (const r of rows) {
+        const p = r.pike;
+        const pikeHtml = (p==null) ? '<div class="n" style="color:var(--mut)">—</div><div class="l">pa notë</div>'
+          : `<div class="n ${clsPike(p)}">${esc(p)}</div><div class="l">/20 kategori</div>`;
+        html += `<div class="lloj">
+          <div class="pike">${pikeHtml}</div>
+          <div style="flex:1">
+            <div class="emri">${esc(r.emri)}</div>
+            <div class="kat">${esc(r.kategoria)}</div>
+            <div class="mets">
+              <div class="met"><div class="v">${esc(r.note_pershtatje)}/10</div><div class="k">Përputhje</div></div>
+              <div class="met"><div class="v">${r.fitimi_neto==null?'—':esc(r.fitimi_neto)+'/10'}</div><div class="k">Fitim neto</div></div>
+              <div class="met"><div class="v">${esc(r.note_hapesire)}/10</div><div class="k">Hapësirë</div></div>
+            </div>
+            <div class="chips">
+              <span class="chip">${esc(r.tregu)}</span>
+              <span class="chip">Global: ${esc(r.potencial_global)}</span>
+              <span class="chip">Kulmi: ${esc(r.koha_kulm)}</span>
+            </div>
+            ${ r.kat_arsye ? `<div class="arsye"><b>Kategoria:</b> ${esc(r.kat_arsye)}</div>` : '' }
+          </div>
+        </div>`;
+      }
+      html += '</div>';
+      $('out').innerHTML = html;
+    } catch(e) { $('out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+  }
+
+  $('nis').addEventListener('click', nis);
+  loadLloje();
+</script>
+</body>
+</html>
