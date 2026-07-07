@@ -92,7 +92,9 @@ Ktheje si tekst i shkurter, nje biznes/niche per rresht.` }]
         model: MODEL_MON,
         tools: [{ type: 'web_search' }],
         input: [{ role: 'user', content:
-`Bej nje kerkim TE MATUR ne internet dhe nxirr MENYRAT e MONETIZIMIT (si fitohet para nga klientet) qe perdoren sot ne platforma/biznese te tipit "${nendhojEmri}". Jep te gjitha menyrat reale te njohura (abonim, per-perdorim, komision, listim i paguar, reklama, lead, etj. — vetem ato qe vlejne realisht ketu).
+`Nen-lloji: "${nendhojEmri}".
+Fillimisht, kupto QELLIMIN KRYESOR te ketij nen-lloji — cfare pune BAZE ben ky biznes per klientin e vet (p.sh. nese eshte "gjetje klientesh", qellimi eshte t'i sjelle klientit KLIENTE TE RINJ).
+Pastaj bej nje kerkim TE MATUR ne internet dhe nxirr menyrat se si biznese te tilla i SJELLIN OSE i KURSEJNE PARA KLIENTIT te tyre permes ketij qellimi kryesor — pra si e ndihmojne klientin te FITOJE me shume para (me shume shitje/kliente, te ardhura me te larta) ose te KURSEJE para (kosto me te ulet). MOS liso menyrat si faturon biznesi klientin (abonim, komision, pay-per-lead) — ato s'na interesojne. Na intereson vetem SI I VJEN PARA KLIENTIT.
 Ktheje si tekst i shkurter, nje menyre per rresht.` }]
       });
       monetizim = String(r2.output_text || '').slice(0, 4000);
@@ -115,11 +117,11 @@ ${biznese}
 MENYRAT e MONETIZIMIT qe perdoren sot:
 ${monetizim}
 
-Detyra: gjej HAPESIRAT (boshllëqet) ne DY drejtime, duke i krahasuar me bizneset dhe monetizimin me siper:
+Detyra: gjej HAPESIRAT (boshllëqet) ne DY drejtime. POR SE PARI, kupto QELLIMIN KRYESOR te ketij nen-lloji — cfare pune BAZE ben ky biznes per klientin (p.sh. nese eshte "gjetje klientesh", qellimi eshte t'i sjelle klientit KLIENTE TE RINJ). Te dyja hapesirat duhet te jene DREJTPERDREJT te kjo pune kryesore, JO te vegla teknike anesore (p.sh. per nje biznes qe gjen kliente: mos jep boshllëqe si "kontroll ligjor i email-eve", "mbrojtje nga spam", "verifikim teknik" — keto jane anesore; jep boshllëqe te VETE gjetja e klienteve: si te gjenden me shume/me te mire kliente).
 
-1. AUTOMATIZIM: gjej cfare mund te AUTOMATIZOHET qe bizneset ekzistuese ENDE nuk e permbushin. Mos u kufizo te ankesat e njerezve — studio cfare njerezit e bejne ENDE MANUALISHT ose cfare mund te automatizohet qe askush s'e ka mbuluar mire. Hapesira kryesore = ku POTHUAJSE ASNJE biznes s'ka automatizim ende; pastaj ato qe pak a shume mbulohen.
+1. AUTOMATIZIM: te VETE puna kryesore e nen-llojit, gjej cfare mund te AUTOMATIZOHET qe bizneset ekzistuese ENDE nuk e permbushin. Mos u kufizo te ankesat — studio cfare njerezit e bejne ENDE MANUALISHT ne piken kryesore te punes. Hapesira kryesore = ku POTHUAJSE ASNJE biznes s'ka automatizim ende; pastaj ato qe pak a shume mbulohen. NUK pranohen boshllëqe te vegla teknike periferike — vetem te qellimi kryesor.
 
-2. MONETIZIM: gjej cfare menyre fitimi NUK mbulohet ende nga bizneset ekzistuese — ku ka mundesi fitimi qe askush s'e shfrytezon.
+2. VLERE PER KLIENTIN: gjej cfare menyre e re per t'i SJELLE OSE KURSYER PARA KLIENTIT (me shume shitje/te ardhura, ose kosto me te ulet) nuk e ofrojne ende bizneset ekzistuese. Kjo eshte strategjia qe e ben KLIENTIN te fitoje para. NUK ka te bej me si faturon ti klientin (jo abonim, jo komision, jo pay-per-lead) — ka te bej me SI I VJEN PARA KLIENTIT permes ketij sherbimi.
 
 RREGULLA:
 - Jep secilen hapesire si BOSHLLEK (cfare mund te mbuloje nje biznes), JO si ide biznesi e gatshme. Vetem boshlleku, i logjikuar sakte.
@@ -182,13 +184,40 @@ Ktheji VETEM si JSON, pa markdown:
     }
   }
 
+  // Studio VETEM nje nen-lloj (fshin vetem studimin e vjeter te ATIJ nen-lloji)
+  async function bejNjeNendhoj(run, llojEmri, nendhojEmri) {
+    try {
+      if (!pool) throw new Error("S'ka databaz.");
+      // Fshi studimin e vjeter vetem te ketij nen-lloji
+      const old = await pool.query(
+        'SELECT id FROM hapesira_studim WHERE lloj_emri=$1 AND nendhoj_emri=$2', [llojEmri, nendhojEmri]);
+      for (const row of old.rows) {
+        await pool.query('DELETE FROM hapesira_rreshta WHERE studim_id=$1', [row.id]);
+      }
+      await pool.query('DELETE FROM hapesira_studim WHERE lloj_emri=$1 AND nendhoj_emri=$2', [llojEmri, nendhojEmri]);
+
+      jobs[run].faza = `Po studion: ${nendhojEmri}`;
+      await studjoNjeNendhoj(llojEmri, nendhojEmri);
+      jobs[run] = { status: 'gati' };
+    } catch (e) {
+      jobs[run] = { status: 'gabim', error: e.message };
+    }
+  }
+
   // ---- Rruget ----
   app.post('/perfundimi/hapesira/nis', (req, res) => {
     const llojEmri = String((req.body && req.body.lloj) || '').trim();
+    const nendhojEmri = String((req.body && req.body.nendhoj) || '').trim();
     if (!llojEmri) return res.status(400).json({ error: 'Mungon lloji.' });
     const run = crypto.randomUUID();
     jobs[run] = { status: 'po_punon', faza: 'po nis…', progres: '' };
-    bejStudimin(run, llojEmri);
+    if (nendhojEmri) {
+      // Studio vetem kete nen-lloj
+      bejNjeNendhoj(run, llojEmri, nendhojEmri);
+    } else {
+      // Studio te gjithe (si me pare)
+      bejStudimin(run, llojEmri);
+    }
     res.json({ run });
   });
 
