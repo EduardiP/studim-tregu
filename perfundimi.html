@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Përfundimi — llojet 20/20</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --warn:#f0b866; --p:#b794f6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:6px 18px; margin:12px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .err { color:#ff9a9a; }
+  .lloj { display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #20242e; cursor:pointer; }
+  .nr { min-width:26px; text-align:center; font-size:18px; font-weight:700; color:var(--mut); padding-top:2px; }
+  .notes { display:flex; flex-direction:column; gap:6px; min-width:96px; }
+  .note { font-weight:700; font-size:15px; border-radius:8px; padding:4px 6px; text-align:center; }
+  .note small { display:block; font-weight:500; font-size:10px; opacity:.8; text-transform:uppercase; }
+  .hi { background:rgba(79,191,133,.15); color:var(--good); }
+  .mid { background:rgba(240,184,102,.15); color:var(--warn); }
+  .lo { background:rgba(154,163,178,.12); color:var(--mut); }
+  .emri { font-weight:600; font-size:16px; }
+  .kat { color:var(--p); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin:5px 0; }
+  .chip { font-size:12px; background:#0b0d12; border:1px solid var(--line); border-radius:20px; padding:2px 9px; color:var(--mut); }
+  .badge-b { background:rgba(183,148,246,.15); color:var(--p); border:1px solid #3a2a5a; border-radius:20px; padding:1px 9px; font-size:11px; }
+  .perb { font-size:12px; color:#9a86c0; margin-top:3px; }
+  .arrow { color:var(--mut); font-size:13px; padding-top:4px; }
+  .nenwrap { margin:6px 0 0 40px; border-left:2px solid #3a2a5a; padding-left:14px; }
+  .hide { display:none; }
+  .nen { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid #1a1d25; }
+  .nnote { font-weight:700; font-size:13px; border-radius:6px; padding:2px 5px; text-align:center; min-width:52px; }
+  .nnote small { display:block; font-weight:500; font-size:9px; opacity:.8; }
+  .nemri { font-weight:600; font-size:14px; }
+  .bg-bashkuar { background:#1c1530; border-color:#3a2a5a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Përfundimi — llojet 20/20 të kategorisë</h1>
+  <p class="sub">Vetëm llojet që morën 20/20 te /kategoria. Ata që u bashkuan te /perzgjedhja shfaqen si një term i vetëm (me sfond vjollcë) me nën-llojet e reja; të tjerët shfaqen si te /kategoria. Kliko një term të bashkuar për nën-llojet.</p>
+
+  <div id="out"><div class="card small" style="padding:16px">Po ngarkohet…</div></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=8?'hi':(n>=5?'mid':'lo'); };
+
+  async function load() {
+    try {
+      const rows = await (await fetch('/perfundimi/lloje')).json();
+      if (!Array.isArray(rows) || !rows.length) {
+        $('out').innerHTML = '<div class="card small" style="padding:16px">Asnjë lloj 20/20. Sigurohu që ke gjeneruar te /kategoria.</div>';
+        return;
+      }
+      const nrBashkuar = rows.filter(r => r.tip==='bashkuar').length;
+      let html = `<div class="card" style="display:flex;gap:24px;align-items:center;padding:14px 18px;">
+        <div><div style="font-size:26px;font-weight:700;color:var(--acc)">${rows.length}</div><div class="small">terma gjithsej</div></div>
+        <div><div style="font-size:26px;font-weight:700;color:var(--p)">${nrBashkuar}</div><div class="small">të bashkuar</div></div>
+      </div><div class="card">`;
+
+      let nr = 0;
+      rows.forEach((r, i) => {
+        nr++;
+        const bashkuar = r.tip==='bashkuar';
+        const subs = r.nendhojet || [];
+        html += `<div class="lloj ${bashkuar?'bg-bashkuar':''}" data-i="${i}" style="${bashkuar?'padding-left:8px;padding-right:8px;border-radius:8px;':''}">
+          <div class="nr">${nr}</div>
+          <div class="notes">
+            <div class="note ${cls(r.note_pershtatje)}">${esc(r.note_pershtatje)}/10<small>Përputhje</small></div>
+            <div class="note ${cls(r.fitimi_neto)}">${r.fitimi_neto==null?'—':esc(r.fitimi_neto)+'/10'}<small>Fitim neto</small></div>
+          </div>
+          <div style="flex:1">
+            <div class="emri">${esc(r.emri)} ${bashkuar?'<span class="badge-b">i bashkuar</span>':''}</div>
+            <div class="kat">${esc(r.kategoria)}</div>
+            <div class="chips">
+              <span class="chip">${esc(r.tregu)}</span>
+              <span class="chip">Global: ${esc(r.potencial_global)}</span>
+              <span class="chip">Hapësirë: ${esc(r.note_hapesire)}/10</span>
+              <span class="chip">Kulmi: ${esc(r.koha_kulm)}</span>
+            </div>
+            ${ bashkuar && r.perberesit ? `<div class="perb">Përfshin: ${esc(r.perberesit)}</div>` : '' }
+          </div>
+          <div class="arrow">${ bashkuar && subs.length ? '▾ '+subs.length+' nën-lloje' : '' }</div>
+        </div>
+        <div class="nenwrap hide" id="nw${i}"></div>`;
+      });
+      html += '</div>';
+      $('out').innerHTML = html;
+
+      // Klik per te hapur nen-llojet (vetem per te bashkuarit me nen-lloje)
+      document.querySelectorAll('[data-i]').forEach(el => {
+        el.addEventListener('click', () => {
+          const i = el.getAttribute('data-i');
+          const r = rows[i];
+          if (r.tip !== 'bashkuar' || !(r.nendhojet||[]).length) return;
+          const wrap = $('nw'+i);
+          wrap.classList.toggle('hide');
+          if (wrap.innerHTML) return;
+          let h = '';
+          for (const n of r.nendhojet) {
+            h += `<div class="nen">
+              <div style="display:flex;gap:6px;">
+                <div class="nnote ${cls(n.potenciali)}">${esc(n.potenciali)}/10<small>Potencial</small></div>
+                ${ n.hapesira ? `<div class="nnote ${cls(n.hapesira)}">${esc(n.hapesira)}/10<small>Hapësirë</small></div>` : '' }
+              </div>
+              <div style="flex:1">
+                <div class="nemri">${esc(n.emri)}</div>
+                <div class="kat">${esc(n.kategoria)}</div>
+                <div class="chips">
+                  <span class="chip">${esc(n.tregu)}</span>
+                  <span class="chip">${n.global==='po'?'Global':'Jo-global'}</span>
+                  <span class="chip">Kulmi: ${esc(n.koha_kulm)}</span>
+                </div>
+              </div>
+            </div>`;
+          }
+          wrap.innerHTML = h;
+        });
+      });
+    } catch(e) { $('out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+  }
+
+  load();
+</script>
+</body>
+</html>
