@@ -127,8 +127,10 @@
     const hb = e.target.closest('.hap-btn');
     if (hb) { e.stopPropagation(); nisHapesire(hb.getAttribute('data-lloj'), hb.getAttribute('data-hi')); return; }
 
-    // klik brenda hapesirave -> mos bej asgje (lejo kopjimin)
-    if (e.target.closest('.hapwrap')) { e.stopPropagation(); return; }
+    // Buton studimi per NJE nen-lloj
+    const h1 = e.target.closest('.hap1-btn');
+    if (h1) { e.stopPropagation(); nisNjeNendhoj(h1.getAttribute('data-lloj'), h1.getAttribute('data-nen'), h1.getAttribute('data-hi'), h1.getAttribute('data-k')); return; }
+
     const nen = e.target.closest('.nen');
     if (nen) { e.stopPropagation(); toggleNen(nen); return; }
 
@@ -159,6 +161,10 @@
                 <span class="chip">${n.global==='po'?'Global':'Jo-global'}</span>
                 <span class="chip">Kulmi: ${esc(n.koha_kulm)}</span>
                 ${ hap ? '<span class="chip" style="color:var(--good)">▾ hapësirat</span>' : '<span class="chip">pa hapësira ende</span>' }
+              </div>
+              <div style="margin-top:6px;">
+                <button class="hbtn hap1-btn" data-lloj="${esc(r.emri)}" data-nen="${esc(n.emri)}" data-hi="${i}" data-k="${k}" style="color:var(--acc);">${ hap ? 'Ristudjo' : 'Studjo hapësirën' }</button>
+                <span class="small hap1-status" id="hs1-${i}-${k}" style="margin-left:8px;"></span>
               </div>
             </div>
           </div>
@@ -202,6 +208,27 @@
       <div style="font-size:13px;">${esc(x.pershkrim)}</div>
       <div class="small"><b style="color:${c}">${esc(x.vleresim)}/100</b>${ x.ekziston && String(x.ekziston).toLowerCase()!=='jo' ? ' · Ekziston: '+esc(x.ekziston) : '' }</div>
     </div>`;
+  }
+
+  async function nisNjeNendhoj(lloj, nendhoj, i, k) {
+    const btn = document.querySelector(`.hap1-btn[data-hi="${i}"][data-k="${k}"]`);
+    const st = $(`hs1-${i}-${k}`);
+    if (!confirm(`Studimi i "${nendhoj}" bën kërkime me web search (ka kosto, por vetëm për këtë nën-lloj). Vazhdo?`)) return;
+    if (btn) btn.disabled = true;
+    if (st) st.innerHTML = '<span class="spin"></span>Po studion…';
+    try {
+      const { run, error } = await (await fetch('/perfundimi/hapesira/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lloj, nendhoj})})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      const t = setInterval(async () => {
+        try {
+          const j = await (await fetch('/perfundimi/hapesira/status/'+run)).json();
+          if (j.status==='po_punon'){ if(st) st.innerHTML=`<span class="spin"></span>${esc(j.faza||'po studion…')}`; }
+          else if (j.status==='gati'){ clearInterval(t); if(st) st.innerHTML='<span style="color:var(--good)">Mbaroi ✓ — rifresko</span>'; if(btn) btn.disabled=false; }
+          else if (j.status==='gabim'){ clearInterval(t); if(st) st.innerHTML=`<span class="err">${esc(j.error)}</span>`; if(btn) btn.disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(t); if(st) st.innerHTML='<span class="err">Humbi.</span>'; if(btn) btn.disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ if(st) st.innerHTML=`<span class="err">${esc(e.message)}</span>`; if(btn) btn.disabled=false; }
   }
 
   async function nisHapesire(lloj, i) {
