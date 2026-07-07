@@ -24,9 +24,9 @@ Biznesi duhet te jete nje PLATFORME qe ofron nje FUNKSION si sherbim, ku:
 3. Biznesi NUK shet asgje — as produkte fizike, as produkte dixhitale (kurse, template, media, asete, IP per shitje), as sherbime fizike/njerezore.
 4. Funksioni i platformes i mundeson perdoruesit te arrije dicka permes saj. Kryesisht keto: (a) te LIDHET me dike/dicka, (b) te KRIJOJE dicka, (c) te AKSESOJE te dhena/informacion — POR mund te kete edhe funksione te tjera te ngjashme qe s'jane ne kete liste. Mos u kufizo vetem te keto tri; nese funksioni eshte i nje natyre te ngjashme (vlera te vete mekanizmi i platformes, jo te shitja), perfshije.
  
-CFARE NUK HYN: cdo gje qe SHET nje produkt (fizik ose dixhital — perfshire kurse, template, media, asete, IP per shitje), cdo gje ku vlera eshte PERMBAJTJA (media, affiliate, blog), cdo gje ku vlera eshte KOMUNITETI/njerezit (anetaresi, rrjete sociale), dhe cdo sherbim qe kryhet nga njerez (jo nga platforma).
+CFARE NUK HYN: cdo gje qe SHET nje produkt (fizik ose dixhital — perfshire kurse, template, media, asete, IP per shitje) dhe cdo sherbim qe kryhet nga njerez (jo nga platforma).
  
-Gjyko sipas BIZNESIT REAL (cfare ofron, kush paguan, per cfare paguan), JO sipas titullit. Nese titulli s'e shpjegon qarte, kupto vete cfare biznesi eshte.`;
+Gjyko sipas dhojit te BIZNESIT REAL (cfare ofron, kush paguan, per cfare paguan), JO vetem sipas titullit. Nese titulli s'e shpjegon qarte, kupto vete cfare biznesi eshte.`;
  
 function createKategoriaRouter(pool, openai, MODEL) {
   const router = express.Router();
