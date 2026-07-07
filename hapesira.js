@@ -79,7 +79,7 @@ function attachHapesiraRoutes(app, pool, openai) {
         model: MODEL_BIZ,
         tools: [{ type: 'web_search' }],
         input: [{ role: 'user', content:
-`Bej nje kerkim TE MATUR ne internet dhe nxirr bizneset dhe NICHET reale qe mbulojne sot nen-llojin e biznesit "${nendhojEmri}". MOS ekzagjero numrin — jep vetem ato qe mbulojne MJAFTUESHEM te gjitha nichet kryesore (jo liste te fryre). Per secilin, nje rresht: emri + cfare mbulon.
+`Bej nje kerkim TE MATUR ne internet dhe nxirr bizneset dhe NICHET reale qe mbulojne sot nen-llojin e biznesit "${nendhojEmri}". Per secilin, trego edhe NICHEN E VECANTE qe mbulon (cilen pjese te fushes e ka zene). Qellimi eshte te kemi qarte cfare eshte TASHME E ZENE ne kete fushe. MOS ekzagjero numrin — jep vetem ato qe mbulojne MJAFTUESHEM fushat kryesore (jo liste te fryre). Per secilin, nje rresht: emri + nichen/pjesen qe mbulon.
 Ktheje si tekst i shkurter, nje biznes/niche per rresht.` }]
       });
       biznese = String(r1.output_text || '').slice(0, 4000);
@@ -93,9 +93,10 @@ Ktheje si tekst i shkurter, nje biznes/niche per rresht.` }]
         tools: [{ type: 'web_search' }],
         input: [{ role: 'user', content:
 `Nen-lloji: "${nendhojEmri}".
-Fillimisht, kupto QELLIMIN KRYESOR te ketij nen-lloji — cfare pune BAZE ben ky biznes per klientin e vet (p.sh. nese eshte "gjetje klientesh", qellimi eshte t'i sjelle klientit KLIENTE TE RINJ).
-Pastaj bej nje kerkim TE MATUR ne internet dhe nxirr menyrat se si biznese te tilla i SJELLIN OSE i KURSEJNE PARA KLIENTIT te tyre permes ketij qellimi kryesor — pra si e ndihmojne klientin te FITOJE me shume para (me shume shitje/kliente, te ardhura me te larta) ose te KURSEJE para (kosto me te ulet). MOS liso menyrat si faturon biznesi klientin (abonim, komision, pay-per-lead) — ato s'na interesojne. Na intereson vetem SI I VJEN PARA KLIENTIT.
-Ktheje si tekst i shkurter, nje menyre per rresht.` }]
+Fillimisht, kupto QELLIMIN KRYESOR te ketij nen-lloji dhe FUSHEN ku operon.
+Pastaj bej nje kerkim TE MATUR ne internet dhe nxirr te gjitha DHOJET/MENYRAT se si nje KLIENT (biznesi qe do te perdorte nje sherbim te tille) FITON PARA permes kesaj fushe. Pra: cilat jane dhojet e fitimit qe nje klient do te paguaj tek sherbimi im me qellim kthimin e nje fitimi (p.sh. me shume shitje, kliente te rinj, cmim me te larte, ruajtje klientesh, kosto me te ulet qe kthehet ne fitim).
+KJO NUK ka te bej me si faturohet nje sherbim (jo abonim, jo komision) — ka te bej me faktin se disa klient jan em te katshem te paguaj per sherbiem qe ju sjellin para sesa per produtke perdonale . Klienti do te paguaje per nje sherbim VETEM nese ai sherbim i sjell para nga njera prej ketyre rrugeve.
+Ktheje si tekst i shkurter, nje rruge fitimi per rresht.` }]
       });
       monetizim = String(r2.output_text || '').slice(0, 4000);
     } catch(e) { monetizim = '(s\'u gjeten)'; }
@@ -117,16 +118,23 @@ ${biznese}
 MENYRAT e MONETIZIMIT qe perdoren sot:
 ${monetizim}
 
-Detyra: gjej HAPESIRAT (boshllëqet) ne DY drejtime. POR SE PARI, kupto QELLIMIN KRYESOR te ketij nen-lloji — cfare pune BAZE ben ky biznes per klientin (p.sh. nese eshte "gjetje klientesh", qellimi eshte t'i sjelle klientit KLIENTE TE RINJ). Te dyja hapesirat duhet te jene DREJTPERDREJT te kjo pune kryesore, JO te vegla teknike anesore (p.sh. per nje biznes qe gjen kliente: mos jep boshllëqe si "kontroll ligjor i email-eve", "mbrojtje nga spam", "verifikim teknik" — keto jane anesore; jep boshllëqe te VETE gjetja e klienteve: si te gjenden me shume/me te mire kliente).
+Detyra: gjej HAPESIRAT (boshllëqet) ne DY drejtime. POR SE PARI, kupto QELLIMIN KRYESOR dhe FUSHEN e ketij nen-lloji. Cdo boshllek qe jep DUHET te jete nje KATEGORI/NICHE E MADHE BRENDA kesaj fushe (nje hapesire ku mund te ndertohet nje BIZNES I MADH me potencial), JO nje mjet i vogel qe ndihmon bizneset ekzistuese, JO nje veçori teknike anesore, JO dicka jashte fushes se ketij nen-lloji.
 
-1. AUTOMATIZIM: te VETE puna kryesore e nen-llojit, gjej cfare mund te AUTOMATIZOHET qe bizneset ekzistuese ENDE nuk e permbushin. Mos u kufizo te ankesat — studio cfare njerezit e bejne ENDE MANUALISHT ne piken kryesore te punes. Hapesira kryesore = ku POTHUAJSE ASNJE biznes s'ka automatizim ende; pastaj ato qe pak a shume mbulohen. NUK pranohen boshllëqe te vegla teknike periferike — vetem te qellimi kryesor.
+Dallimi kritik:
+- GABIM (mjet i vogel): "nje vegel qe u kontrollon email-et bizneseve" — kjo eshte nje veçori.
+- GABIM (kategori jasht nen-llojit te biznesit): "dhenia e nje shebulli si niche apo hapsir qe mbulohet nga nje sherbim qe nuk ka lidhje me nen-llojin qe po studjojm" .
+- SAKTE (kategori e madhe): "nje kategori e tere biznesi brenda kesaj fushe qe askush s'e mbulon mire dhe mund te behet platforme e madhe".
 
-2. VLERE PER KLIENTIN: gjej cfare menyre e re per t'i SJELLE OSE KURSYER PARA KLIENTIT (me shume shitje/te ardhura, ose kosto me te ulet) nuk e ofrojne ende bizneset ekzistuese. Kjo eshte strategjia qe e ben KLIENTIN te fitoje para. NUK ka te bej me si faturon ti klientin (jo abonim, jo komision, jo pay-per-lead) — ka te bej me SI I VJEN PARA KLIENTIT permes ketij sherbimi.
+1. AUTOMATIZIM: duke marre bizneset ekzistuese me siper, gjej nje BOSHLLEK TE MADH — nje kategori/niche te madhe brenda fushes se ketij nen-lloji qe mund te AUTOMATIZOHET plotesisht dhe qe askush nuk e mbulon si duhet, e tille qe mund te preje nje BIZNES TE MADH (jo nje mjet per bizneset ekzistuese). Boshlleku duhet te jete BRENDA vete fushes se nen-llojit si kategori biznesi,  pra vet biznesi qe ndertoeht ne kete hapsir duhet te jet ne fushen e nen-llojit.
+
+2. VLERE PER KLIENTIN (ku klienti paguan per te fituar): duke marre rruget e fitimit te klientit me siper, gjej nje HAPESIRE TE MADHE ku klienti do te paguante per nje sherbim SEPSE i sjell para me von ose indirekt — nje hapesire qe bizneset aktuale NUK e kane integruar ende ose kan mangesi. Sërish: kategori e madhe brenda fushes, jo mjet i vogel.
+
+NESE brenda ketij nen-lloji NUK ka nje boshllek te madh me potencial per njeren kolone, OSE nen-lloji vete nuk ka lidhje me idene "klienti paguan per te fituar para", ATEHERE mos sajo boshllëqe te medha me force — kthe vetem ato qe gjen realisht (edhe nese jane te dobeta), por GJITHMONE si boshllëqe brenda fushes se nen-llojit (jo si mjete, jo si nen-lloje te tjera). Nese s'ka fare, kthe liste bosh per ate kolone.
 
 RREGULLA:
 - Jep secilen hapesire si BOSHLLEK (cfare mund te mbuloje nje biznes), JO si ide biznesi e gatshme. Vetem boshlleku, i logjikuar sakte.
 - Per secilen hapesire jep nje pershkrim: cfare eshte, dhe cfare NICHE mund te jete (nese e ke te qarte).
-- Per SECILEN hapesire, bej nje kerkim te shpejte ne internet: a ekziston tashme ndonje sherbim qe e mbulon kete, qe MUND te mos jete ne listen e bizneseve me siper? Shkruaje te fusha "ekziston" (ose "jo" nese s'gjete).
+- VERIFIKIM (i detyrueshem per secilen hapesire): bej nje kerkim TE VECANTE ne internet per kete boshllek te madh — a ekziston tashme ndonje biznes/sherbim qe e mbulon kete kategori, qe MUND te mos ishte ne listen e bizneseve te hapit 1? Nese gjen, shkruaj emrin/emrat te fusha "ekziston"; nese s'gjen fare, shkruaj "jo". Kjo tregon sa e zene eshte hapesira ne te vertete. Pra bej kerkim vetem pasi te krahasohet me idet e bizensit te mbledhura ne ate kategroi me qellim gjetjen e ndonje biznesi aktual qe mund t aket mbuluar ate niche dhe qe bizneset qe thirrem nuk e treguan.
 - Vlereso secilen hapesire 1-100 sipas KUSHTEVE TE MIA me siper (potenciali per mua).
 
 Jep gjithashtu:
