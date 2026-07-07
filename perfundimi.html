@@ -130,7 +130,74 @@
       });
     } catch(e) { $('out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
   }
+  // ===== Studimi i hapesires =====
+  const hapTimers = {};
 
+  async function nisHapesire(lloj, i) {
+    const btn = document.querySelector(`.hap-btn[data-hi="${i}"]`);
+    const st = $('hs'+i);
+    if (!confirm('Studimi i hapësirës bën kërkime me web search për çdo nën-lloj (ka kosto). Vazhdo?')) return;
+    if (btn) btn.disabled = true;
+    st.innerHTML = '<span class="spin"></span>Po nis…';
+    try {
+      const { run, error } = await (await fetch('/perfundimi/hapesira/nis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lloj})})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      if (hapTimers[i]) clearInterval(hapTimers[i]);
+      hapTimers[i] = setInterval(async () => {
+        try {
+          const j = await (await fetch('/perfundimi/hapesira/status/'+run)).json();
+          if (j.status==='po_punon'){ st.innerHTML=`<span class="spin"></span>${esc(j.faza||'')} ${esc(j.progres||'')}`; }
+          else if (j.status==='gati'){ clearInterval(hapTimers[i]); st.innerHTML='<span style="color:var(--good)">Mbaroi ✓</span>'; if(btn) btn.disabled=false; shfaqHapesire(lloj, i); }
+          else if (j.status==='gabim'){ clearInterval(hapTimers[i]); st.innerHTML=`<span class="err">${esc(j.error)}</span>`; if(btn) btn.disabled=false; }
+          else if (j.status==='pa_gjetur'){ clearInterval(hapTimers[i]); st.innerHTML='<span class="err">Humbi.</span>'; if(btn) btn.disabled=false; }
+        } catch(e){}
+      }, 3000);
+    } catch(e){ st.innerHTML=`<span class="err">${esc(e.message)}</span>`; if(btn) btn.disabled=false; }
+  }
+
+  async function shfaqHapesire(lloj, i) {
+    const box = $('hap'+i);
+    try {
+      const rows = await (await fetch('/perfundimi/hapesira/'+encodeURIComponent(lloj))).json();
+      if (!Array.isArray(rows) || !rows.length){ box.innerHTML='<div class="small">Pa rezultate.</div>'; return; }
+      let h = '';
+      for (const nd of rows) {
+        h += `<div class="card" style="margin:8px 0;padding:12px 14px;">
+          <div style="display:flex;gap:10px;align-items:center;">
+            <div class="note ${nd.vleresim_pergjithshem>=60?'hi':(nd.vleresim_pergjithshem>=30?'mid':'lo')}" style="min-width:56px;">${esc(nd.vleresim_pergjithshem)}/100<small>Hapësirë</small></div>
+            <div style="flex:1"><div class="emri" style="font-size:15px;">${esc(nd.nendhoj_emri)}</div><div class="small">${esc(nd.pershkrim_kryesor)}</div></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:10px;">
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:var(--acc);margin-bottom:6px;">AUTOMATIZIM</div>
+              ${ (nd.automatizim||[]).map(x => hapRresht(x)).join('') || '<div class="small">—</div>' }
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:13px;color:var(--good);margin-bottom:6px;">VLERË MONETARE</div>
+              ${ (nd.monetizim||[]).map(x => hapRresht(x)).join('') || '<div class="small">—</div>' }
+            </div>
+          </div>
+        </div>`;
+      }
+      box.innerHTML = h;
+    } catch(e){ box.innerHTML = `<div class="small err">${esc(e.message)}</div>`; }
+  }
+
+  function hapRresht(x){
+    const v = Number(x.vleresim)||0;
+    const c = v>=60?'var(--good)':(v>=30?'var(--warn)':'var(--mut)');
+    return `<div style="border-left:2px solid ${c};padding:4px 0 4px 8px;margin-bottom:6px;">
+      <div style="font-size:13px;">${esc(x.pershkrim)}</div>
+      <div class="small"><b style="color:${c}">${esc(x.vleresim)}/100</b>${ x.ekziston && x.ekziston.toLowerCase()!=='jo' ? ' · Ekziston: '+esc(x.ekziston) : '' }</div>
+    </div>`;
+  }
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.hap-btn');
+    if (b) { e.stopPropagation(); nisHapesire(b.getAttribute('data-lloj'), b.getAttribute('data-hi')); }
+  });
+
+  load();
   load();
 </script>
 </body>
