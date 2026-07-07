@@ -226,7 +226,14 @@ Ktheje VETEM si JSON objekt, pa markdown:
       res.json(r.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
   });
- 
+  // Run-i i fundit (qe rezultatet te mbeten pas rifreskimit)
+  router.get('/fundit', async (req, res) => {
+    if (!pool) return res.json({ run: null });
+    try {
+      const r = await pool.query('SELECT run FROM filter_rezultat ORDER BY created_at DESC LIMIT 1');
+      res.json({ run: r.rows.length ? r.rows[0].run : null });
+    } catch (e) { res.json({ run: null }); }
+  });
   return router;
 }
  
