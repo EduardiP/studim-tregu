@@ -59,9 +59,15 @@
 
   function render(rows){
     if (!Array.isArray(rows) || !rows.length){ $('out').innerHTML='<div class="card small">Ende asgjë. Kliko "Gjenero".</div>'; return; }
-    let html = `<div class="card">`;
+    let html = `<div class="card" style="display:flex;gap:24px;align-items:center;padding:14px 16px;">
+      <div><div style="font-size:26px;font-weight:700;color:var(--acc)">${rows.length}</div><div class="small">lloje gjithsej</div></div>
+    </div>
+    <div class="card">`;
+    let nr = 0;
     for (const r of rows){
+      nr++;
       html += `<div class="item">
+        <div style="min-width:26px;text-align:center;font-size:18px;font-weight:700;color:var(--mut);padding-top:2px;">${nr}</div>
         <div class="notes">
           <div class="note ${cls(r.note_pershtatje)}">${esc(r.note_pershtatje)}/10<small>Përputhje</small></div>
           <div class="note ${cls(r.note_hapesire)}">${esc(r.note_hapesire)}/10<small>Hapësirë</small></div>
