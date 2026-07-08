@@ -104,7 +104,7 @@ function attachHapesiraRoutes(app, pool, openai) {
 
 Nen-lloji: "${nendhojEmri}".
 Cfare eshte: ${pershkrimNen}
-${ekluar ? `\nKETO maja jane provuar tashme dhe jane TE ZENA — mos i perserit, mendo nje maje TJETER pak me poshte tyre:\n${ekluar}\n` : ''}
+${ekluar ? `\nKETO maja jane provuar tashme dhe jane TE ZENA — mos i perserit, mendo MAJAT tjera qe vijn posht tyre pa studjuar ato qe ishin te nxena :\n${ekluar}\n` : ''}
 Detyra: perdor LOGJIKE TE FORTE (jo kerkim ne internet fillimisht) per te gjetur MAJEN (aty ku mund te krijohen biznese te medha dhe jo thjshet sherbime plotesuese per kete dhoj biznesi, pra MAJA nenkupton sherbim mbi sherbiemt qe mund te jen rijuar)  e hapesirave me potencial per nje BIZNES TE MADH brenda kesaj fushe. Mendo sipas VLERES/LOGJIKES — per te gjetur hapsira per niche qe mund te jen nej bizens i madh me te ardhura te larta ne kete kategori qe mudn te jet te ndertosh dika mbi ate qe eshte dnertuar deri tani ne kete dhoj  kategorie dhe qe ka potencial — JO sipas "cfare u mungon bizneseve".
 
 Mendimi "MBIMURIM" (ndertim mbi ate qe eshte ndertuar): supozo qe bizneset ekzistuese kane automatizuar tashme gjerat BAZE dhe te PJESSHME te kesaj fushe. Ti mendo nje shkalle ME TE LARTE — automatizimin MBI ATE QE ESHTE NDERTUAR nga qe mund te jet nga fillimi deri en fund i asaj kategorie ose nje pjes e konsiderueshme e asaj kategrorie qe mund te mo jet nxen akoma nga bizenset aktuale te asaj kategorie. P.sh. nese te tjere automatizojne krijimin e reklamave ose pergjigjet ndaj klienteve, ti mendo automatizimin e GJITHE ciklit ose automatizim ne dicka qe ende ata nuk e kan automatizuar.
