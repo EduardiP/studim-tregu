@@ -23,17 +23,17 @@ const KUSHTET = `KUSHTET E MIA (strikte — biznesi duhet t'i plotesoje TE GJITH
 POTENCIALI:
 - Fitim i madh + rritje GLOBALE (pa kufij gjeografike) + hapesire e madhe ne treg.
 - Fitim i madh ne kohe te shkurter kur te kete arritur produktivitetin (ose fitim i madh ditor ne pjekuri).
-- Duhet te jete nje PROJEKT/KATEGORI E MADHE (mbulon nje sektor a kategori te madhe), JO nje vegel e vogel.
+- Duhet te jete nje PROJEKT/KATEGORI E MADHE (mbulon nje sektor a kategori te madhe), JO nje vegel e vogel apo nje sherbim i vogel apo shum specifik.
 
 NDERTIMI DHE MENAXHIMI:
 - I ndertueshem nga NJE person me AI (Claude) + sherbime moderne.
-- I automatizueshem ne menaxhim me KODIN PRIVAT te vete aplikacionit qe ndertohet (jo ekip, madje pak edhe pa mua).
+- I automatizueshem ne menaxhim me AI apo me kodin e vet aplikacionit qe ndertohet ose em sherbime te jashtme(jo ekip, pa kerkuar mua nenstop ne menaxhim).
 
 KATEGORIA (kufi FIKS — mos dil jashte):
 - VETEM sherbime qe ofrojne FUNKSIONIN ose VLEREN si sherbim, ose TE DHENAT, ose NDERMJETESIMIN. Nje nga keto.
 - NUK shet produkte (as fizike, as dixhitale, as veshje, as asgje te tille).
-- NUK jane programe modifikimi apo sherbime "te uleta".
-- Fushat ku ndihem vetja: shkence, filozofi, te dhena, AI, biznese, ndermjetesim, dhe te ngjashme intelektuale.
+- NUK jane programe modifikimi apo sherbime "te uleta" (te ult per mua jan ato qe nuk kan vler intelektuale ap onuk u sjell ndonej vler reale njerzve).
+- Fushat ku ndihem vetja: shkence, filozofi, te dhena, AI, biznese, platfrma ndermjetesim, dhe te ngjashme intelektuale ( dua qe pervec se te ndertoj biznes edhe te em sjelli vler si njeri qe ontribuon en dicka te rednesishem per nejrzit dhe jo thjesht shess rroba apo programi per modifikim videosh apo fotosh).
 
 VLERA QE MUND TE OFROJ (perveç funksionit kryesor):
 - Fitimi i parave per klientin (klienti paguan sepse fiton).
@@ -41,8 +41,8 @@ VLERA QE MUND TE OFROJ (perveç funksionit kryesor):
 Keto jane vlere e biznesit tim, pervec funksionit/vleres/te dhenave/ndermjetesimit qe ofron.
 
 SHPIRTI (i rendesishem):
-- Biznesi duhet te me jape nje lloj vlere si INTELEKTUAL ose mbeshtetes i dickaje qe njerezimi ka nevoje.
-- Duhet te jete dicka ku UNE GJEJ VETEN — jo dicka qe behet me zor thjesht sepse ka fitim.
+- Biznesi duhet te me jape nje lloj vlere si INTELEKTUAL ose mbeshtetes i dickaje qe njerezimi ka nevoje dhe korr benefite prej aj per koh te gjat.
+- Duhet te jete dicka ku UNE GJEJ VETEN — jo dicka qe behet me zor thjesht sepse ka fitim (megjithate gjej ate em fitimin me te lart en keto fusha).
 
 100 = pershtatje maksimale me te gjitha keto; 1 = shume e dobet.`;
 
@@ -78,13 +78,13 @@ function attachGjetesiRoutes(app, pool, openai) {
       input: [{ role: 'user', content:
 `${KUSHTET}
 
-Detyra: perdor LOGJIKE TE FORTE (jo kerkim ne internet) per te gjetur NJE ide biznesi te vetme, te madhe (nje kategori/sektor i madh, jo vegel), qe i pershtatet TE GJITHA kushteve me siper — sidomos shpirtit (ku gjej veten, vlere intelektuale). Perpiqu ta PERSOSESH ate nje ide (jo disa te cekëta).
+Detyra: perdor LOGJIKE TE FORTE (jo kerkim ne internet) per te gjetur NJE ide biznesi te vetme, te madhe (nje kategori/sektor i madh, jo vegelapo sherbii i vogel apo shum speifik), qe i pershtatet TE GJITHA kushteve me siper — sidomos shpirtit (ku gjej veten, vlere intelektuale). Perpiqu ta PERSOSESH ate nje ide (jo disa te cekëta).
 
 ${idete_meparshme ? `IDETE QE TASHME JANE PROPOZUAR (mos i perserit — jep nje TJETER, te ndryshme):\n${idete_meparshme}\n` : ''}
 ${fusha_te_mira ? `FUSHA QE TASHME DHANE NJE IDE TE MIRE (largohu prej tyre — eksploro fusha TJERA):\n${fusha_te_mira}\n` : ''}
 ${fusha_te_dobeta ? `FUSHA QE DHANE IDE TE DOBET (mund t'i provosh serish, bashke me te reja):\n${fusha_te_dobeta}\n` : ''}
 
-Jep NJE ide te vetme, si pershkrim i qarte (4-8 fjali): cfare eshte biznesi, cfare funksioni/vlere ofron, pse i pershtatet kushteve, dhe ne cilen FUSHE ben pjese (shkence/filozofi/te dhena/AI/biznese/ndermjetesim/etj).
+Jep NJE ide te vetme, si pershkrim i qarte (5-10 fjali): cfare eshte biznesi, cfare funksioni/vlere ofron, pse i pershtatet kushteve, dhe ne cilen FUSHE ben pjese (shkence/filozofi/te dhena/AI/biznese/ndermjetesim/etj).
 
 Ktheji VETEM si JSON, pa markdown:
 {"ideja":"pershkrimi i plote i ides","fusha":"fusha kryesore ku ben pjese"}` }]
@@ -105,7 +105,7 @@ Ideja e biznesit qe po verifikojme:
 ${ideja}
 
 Detyra (KERKIM I SHPEJTE — mos hyr thelle, 1-3 kerkime mjaftojne):
-1. Kerko VETEM lojtaret KRYESORE qe e mbulojne realisht kete ide (nese ka). Mos liso çdo konkurrent — vetem kryesoret. Nese pas 1-3 kerkimesh s'gjen konkurrent kryesor, ndalo.
+1. Kerko VETEM lojtaret KRYESORE dhe TE MESEM qe e mbulojne realisht kete ide (nese ka). Mos liso çdo konkurrent — vetem kryesoret. Nese pas 1-3 kerkimesh s'gjen konkurrent kryesor, ndalo.
 2. Cakto "ka_konkurrent": true nese ka te pakten nje lojtar kryesor qe e mbulon; false nese s'ka.
 3. Jep VLERESIM 1-100 sa i pershtatet kjo ide TE GJITHA kushteve te mia: madhesia/potenciali, kategoria e lejuar, ndertueshmeria nga nje person, shpirti (fushat intelektuale ku gjej veten), dhe KONKURRENCA (sa e zene). Nese e zene nga lojtare te medhenj, vleresim i ulet.
 
