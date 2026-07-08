@@ -16,16 +16,6 @@ const crypto = require('crypto');
 const MODEL_LOGJIKE = 'gpt-5.5';   // arsyetimi 'mbimurim' (PA web search — i lire)
 const MODEL_KERKIM  = 'gpt-5.4';   // verifikimi ne treg (me web search)
 
-const AFATI_MS = 240000;           // 4 minuta per thirrje; nese kalon -> gabim (nuk pret pafund)
-
-// Mbeshtjell nje thirrje me afat: nese s'kthen brenda AFATI_MS, hedh gabim
-function meAfat(promise, ms = AFATI_MS) {
-  return Promise.race([
-    promise,
-    new Promise((_, rej) => setTimeout(() => rej(new Error('timeout: thirrja u vonua')), ms))
-  ]);
-}
-
 const KUSHTET_IM = `KUSHTET E MIA (per te vleresuar potencialin e nje hapesire, 1-100):
 - Fitim ME I LARTE ne kohen ME TE SHKURTER ne pjekuri pa amrr parasysh kohen qe biznesi kerkon per te shkuar aty (kryesori).
 - Fitim neto sa me i larte (sa mbetet realisht pas kostove).
@@ -80,7 +70,7 @@ function attachHapesiraRoutes(app, pool, openai) {
 
   // Verifikon nje maje ne treg: a ka konkurrent te fort + vleresim
   async function verifikoMaje(nendhojEmri, ideja) {
-    const rk = await meAfat(openai.responses.create({
+    const rk = await openai.responses.create({
       model: MODEL_KERKIM,
       tools: [{ type: 'web_search' }],
       max_output_tokens: 4000,
@@ -97,7 +87,7 @@ Detyra (KERKIM I SHPEJTE — mos hyr thelle, 1-3 kerkime mjaftojne):
 
 Ktheji VETEM si JSON, pa markdown:
 {"konkurrenca":"","ka_konkurrent_te_fort":true,"vleresim":0}` }]
-    }));
+    });
     const o = nxjerrObjekt(rk.output_text);
     return {
       konkurrenca: String(o.konkurrenca||'').slice(0,1500),
@@ -115,13 +105,13 @@ Ktheji VETEM si JSON, pa markdown:
     } catch(e) {}
     if (!pershkrimNen) {
       try {
-        const rb = await meAfat(openai.responses.create({
+        const rb = await openai.responses.create({
           model: MODEL_KERKIM,
           tools: [{ type: 'web_search' }],
           max_output_tokens: 1500,
           input: [{ role: 'user', content:
 `Ne 3-6 fjali, shpjego shkurt cfare eshte nen-lloji i biznesit "${nendhojEmri}" dhe cfare pune ben. Vetem shpjegim, pa liste.` }]
-        }));
+        });
         pershkrimNen = String(rb.output_text || '').slice(0, 800);
       } catch(e) { pershkrimNen = nendhojEmri; }
     }
@@ -133,7 +123,7 @@ Ktheji VETEM si JSON, pa markdown:
       // ---- LOGJIKA (gpt-5.5, PA web search) — gjen SA ME SHUME maja sipas 'mbimurim' ----
       let majat = [];
       try {
-        const rl = await meAfat(openai.responses.create({
+        const rl = await openai.responses.create({
           model: MODEL_LOGJIKE,
           max_output_tokens: 6000,
           input: [{ role: 'user', content:
@@ -157,7 +147,7 @@ Jep MAKSIMUM 5 maja (jo me shume) qe kane potencialin me te larte per kete cikel
 
 Ktheji VETEM si JSON, pa markdown:
 {"majat":["hapesira 1 e plote","hapesira 2 e plote"]}` }]
-        }));
+        });
         const o = nxjerrObjekt(rl.output_text);
         majat = Array.isArray(o.majat) ? o.majat.map(x => String(x||'').trim()).filter(Boolean).slice(0, 5) : [];
       } catch(e) { majat = []; }
