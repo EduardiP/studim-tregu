@@ -73,7 +73,6 @@ function attachHapesiraRoutes(app, pool, openai) {
     const rk = await openai.responses.create({
       model: MODEL_KERKIM,
       tools: [{ type: 'web_search' }],
-      max_output_tokens: 4000,
       input: [{ role: 'user', content:
 `${KUSHTET_IM}
 
@@ -108,7 +107,6 @@ Ktheji VETEM si JSON, pa markdown:
         const rb = await openai.responses.create({
           model: MODEL_KERKIM,
           tools: [{ type: 'web_search' }],
-          max_output_tokens: 1500,
           input: [{ role: 'user', content:
 `Ne 3-6 fjali, shpjego shkurt cfare eshte nen-lloji i biznesit "${nendhojEmri}" dhe cfare pune ben. Vetem shpjegim, pa liste.` }]
         });
@@ -125,7 +123,6 @@ Ktheji VETEM si JSON, pa markdown:
       try {
         const rl = await openai.responses.create({
           model: MODEL_LOGJIKE,
-          max_output_tokens: 16000,
           input: [{ role: 'user', content:
 `${KUSHTET_IM}
 
