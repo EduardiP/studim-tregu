@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gjetësi — biznesi që më përshtatet</title>
+<style>
+  :root { --bg:#0f1115; --card:#171a21; --line:#2a2f3a; --txt:#e7e9ee; --mut:#9aa3b2; --acc:#6ea8fe; --good:#4fbf85; --warn:#f0b866; --p:#b794f6; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:16px/1.6 system-ui,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width:900px; margin:0 auto; padding:28px 18px 80px; }
+  h1 { font-size:22px; font-weight:600; margin:0 0 4px; }
+  p.sub { color:var(--mut); margin:0 0 22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  .small { font-size:13px; color:var(--mut); }
+  .err { color:#ff9a9a; }
+  button.nis { font-size:15px; padding:10px 18px; background:var(--acc); color:#0b0d12; border:none; border-radius:10px; cursor:pointer; font-weight:600; }
+  button.nis:disabled { opacity:.5; cursor:default; }
+  .spin { display:inline-block; width:14px; height:14px; border:2px solid var(--mut); border-top-color:transparent; border-radius:50%; animation:s .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes s { to { transform:rotate(360deg); } }
+  .ide { display:flex; gap:14px; padding:16px 0; border-bottom:1px solid #20242e; align-items:flex-start; }
+  .pike { min-width:64px; text-align:center; }
+  .pike .n { font-size:26px; font-weight:700; line-height:1; }
+  .pike .l { font-size:10px; color:var(--mut); }
+  .hi { color:var(--good); } .mid { color:var(--warn); } .lo { color:var(--mut); }
+  .fusha { color:var(--p); font-size:12px; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+  .pershkrim { font-size:14px; }
+  .konk { font-size:12px; color:var(--mut); margin-top:8px; border-top:1px dashed #2a2f3a; padding-top:6px; }
+  .lvl { font-size:11px; color:var(--mut); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gjetësi — biznesi që më përshtatet</h1>
+  <p class="sub">7 ide, secila e logjikuar (gpt-5.5) dhe e verifikuar në treg (gpt-5.4), të renditura sipas përshtatjes me kushtet e mia.</p>
+
+  <div class="card">
+    <button class="nis" id="nisBtn">Nis gjetjen (7 ide)</button>
+    <span class="small" id="status" style="margin-left:10px;"></span>
+    <div class="small" style="margin-top:8px;">Kujdes: bën kërkime me web search (ka kosto). Punon në sfond — mund ta mbyllësh faqen dhe të kthehesh.</div>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const cls = n => { n=Number(n)||0; return n>=60?'hi':(n>=30?'mid':'lo'); };
+  let timer = null;
+
+  function render(rows) {
+    if (!Array.isArray(rows) || !rows.length) { $('out').innerHTML=''; return; }
+    let html = '<div class="card">';
+    for (const r of rows) {
+      html += `<div class="ide">
+        <div class="pike"><div class="n ${cls(r.vleresim)}">${esc(r.vleresim)}</div><div class="l">/100</div></div>
+        <div style="flex:1">
+          <div class="fusha">${esc(r.fusha)} · <span class="lvl">niveli ${esc(r.niveli)}</span></div>
+          <div class="pershkrim">${esc(r.ideja)}</div>
+          ${ r.konkurrenca ? `<div class="konk"><b>Konkurrenca:</b> ${esc(r.konkurrenca)}</div>` : '' }
+        </div>
+      </div>`;
+    }
+    html += '</div>';
+    $('out').innerHTML = html;
+  }
+
+  async function ngarkoFundit() {
+    try {
+      const j = await (await fetch('/gjetesi/fundit')).json();
+      if (j.rows) render(j.rows);
+    } catch(e) {}
+  }
+
+  async function nis() {
+    if (!confirm('Nis gjetjen? Bën deri në 7 logjikime + 7 kërkime (ka kosto).')) return;
+    $('nisBtn').disabled = true;
+    $('status').innerHTML = '<span class="spin"></span>po nis…';
+    try {
+      const { run, error } = await (await fetch('/gjetesi/nis',{method:'POST'})).json();
+      if (error || !run) throw new Error(error||'S\'u nis dot.');
+      if (timer) clearInterval(timer);
+      timer = setInterval(async () => {
+        try {
+          const j = await (await fetch('/gjetesi/status/'+run)).json();
+          if (j.status==='po_punon') {
+            $('status').innerHTML = `<span class="spin"></span>${esc(j.faza||'')} (${esc(j.progres||'')})`;
+            // shfaq ç'ka u ruajt deri tani
+            const r = await (await fetch('/gjetesi/rezultat/'+run)).json();
+            render(r);
+          } else if (j.status==='gati') {
+            clearInterval(timer);
+            $('status').innerHTML = '<span style="color:var(--good)">Mbaroi ✓</span>';
+            $('nisBtn').disabled = false;
+            const r = await (await fetch('/gjetesi/rezultat/'+run)).json();
+            render(r);
+          } else if (j.status==='gabim') {
+            clearInterval(timer);
+            $('status').innerHTML = `<span class="err">${esc(j.error)}</span>`;
+            $('nisBtn').disabled = false;
+          } else if (j.status==='pa_gjetur') {
+            clearInterval(timer);
+            $('status').innerHTML = '<span class="err">Humbi.</span>';
+            $('nisBtn').disabled = false;
+          }
+        } catch(e) {}
+      }, 3000);
+    } catch(e) {
+      $('status').innerHTML = `<span class="err">${esc(e.message)}</span>`;
+      $('nisBtn').disabled = false;
+    }
+  }
+
+  $('nisBtn').addEventListener('click', nis);
+  ngarkoFundit();
+</script>
+</body>
+</html>
