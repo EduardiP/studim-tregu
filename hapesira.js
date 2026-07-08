@@ -125,7 +125,7 @@ Ktheji VETEM si JSON, pa markdown:
       try {
         const rl = await openai.responses.create({
           model: MODEL_LOGJIKE,
-          max_output_tokens: 6000,
+          max_output_tokens: 16000,
           input: [{ role: 'user', content:
 `${KUSHTET_IM}
 
@@ -150,7 +150,13 @@ Ktheji VETEM si JSON, pa markdown:
         });
         const o = nxjerrObjekt(rl.output_text);
         majat = Array.isArray(o.majat) ? o.majat.map(x => String(x||'').trim()).filter(Boolean).slice(0, 5) : [];
-      } catch(e) { majat = []; }
+      } catch(e) {
+        // Logjika deshtoi (p.sh. output i paplote) — ruaj arsyen qe ta shohesh
+        if (cikel === 1 && !gjetjet.length) {
+          gjetjet.push({ logjika: `(logjika deshtoi: ${e.message})`, kerkimi: '', vleresim: 0 });
+        }
+        majat = [];
+      }
       if (!majat.length) break;
 
       // ---- KERKIMI (gpt-5.4, ME web search) — verifiko SECILEN maje ----
