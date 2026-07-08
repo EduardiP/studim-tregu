@@ -1,10 +1,10 @@
-// hapesira.js — SEKSION I RI. Studimi i HAPESIRES per nen-llojet e nje termi te /perfundimi.
-// Per cdo nen-lloj, TRE hapa:
-//   Hapi 1 (gpt-5.4, web search): bizneset/nichet reale qe mbulojne kete nen-lloj sot (pa ekzagjerim).
-//   Hapi 2 (gpt-5.4, web search): menyrat e monetizimit qe behen sot ne platforma te tilla.
-//   Hapi 3 (gpt-5.5, web search): HAPESIRAT per automatizim + monetizim, krahasuar me hapat 1 & 2,
-//     si BOSHLLEK (jo ide biznesi), me verifikim nese ekziston sherbim qe s'u rendit.
-// Nje nen-lloj ne nje kohe; sapo mbaron -> RUHET, pastaj tjetri. Nese nje hap deshton, vazhdon.
+// hapesira.js — Studimi i HAPESIRES per nen-llojet (logjika 'mbimurim').
+// Per cdo nen-lloj:
+//   1. Kupto nen-llojin (nga databaza ose kerkim baz).
+//   2. LOGJIKA (gpt-5.5, PA web search): arsyeton 'mbimurim' -> gjen MAJEN e hapesires me potencial.
+//   3. KERKIMI (gpt-5.4, me web search): verifikon a eshte e zene maja + vleresim 1-100.
+//   4. Nese maja e zene -> logjika e dyte (maje me poshte) + kerkim. MAKSIMUM 2 cikle.
+// Vetem AUTOMATIZIM (pa monetizim kete raund). Nje nen-lloj ne nje kohe; ruhet pas secilit.
 //
 // Wiring te server.js (para app.listen):
 //   const { attachHapesiraRoutes } = require('./hapesira');
@@ -12,16 +12,15 @@
 
 const crypto = require('crypto');
 
-const MODEL_BIZ  = 'gpt-5.4';   // bizneset/nichet
-const MODEL_MON  = 'gpt-5.4';   // monetizimi
-const MODEL_HAP  = 'gpt-5.5';   // hapesirat (me i forti)
+const MODEL_LOGJIKE = 'gpt-5.5';   // arsyetimi 'mbimurim' (PA web search — i lire)
+const MODEL_KERKIM  = 'gpt-5.4';   // verifikimi ne treg (me web search)
 
 const KUSHTET_IM = `KUSHTET E MIA (per te vleresuar potencialin e nje hapesire, 1-100):
-- Fitim ME I LARTE ne kohen ME TE SHKURTER ne piekuri (kryesori).
+- Fitim ME I LARTE ne kohen ME TE SHKURTER ne pjekuri pa amrr parasysh kohen qe biznesi kerkon per te shkuar aty (kryesori).
 - Fitim neto sa me i larte (sa mbetet realisht pas kostove).
-- Mundesi AUTOMATIZIMI (pune minimale, pa prani nonstop).
-- Rritje GLOBALE (pa kufij gjeografike).
-- I ndertueshem nga nje person me mjete moderne, me fonde minimale.
+- Mundesi AUTOMATIZIMI ne drejtim dhe menaxhim pas ndertimti (pune minimale, pa prani nonstop).
+- Potencial per Rritje GLOBALE (pa kufij gjeografike).
+- I ndertueshem nga nje person me mjete dhe sherbime moderne (nese afteit e mia nuk e mbulojn), dhe me fonde minimale.
 100 = hapesire me potencial maksimal per keto kushte; 1 = shume e dobet.`;
 
 function nxjerrArray(text) {
@@ -72,96 +71,102 @@ function attachHapesiraRoutes(app, pool, openai) {
   }
 
   async function studjoNjeNendhoj(llojEmri, nendhojEmri) {
-    // --- Hapi 1: bizneset/nichet ---
-    let biznese = '';
+    // Pershkrimi i nen-llojit (nga databaza nese ka; perndryshe kerkim baz)
+    let pershkrimNen = '';
     try {
-      const r1 = await openai.responses.create({
-        model: MODEL_BIZ,
-        tools: [{ type: 'web_search' }],
-        input: [{ role: 'user', content:
-`Bej nje kerkim TE MATUR ne internet dhe nxirr bizneset dhe NICHET reale qe mbulojne sot nen-llojin e biznesit "${nendhojEmri}". Per secilin, trego edhe NICHEN E VECANTE qe mbulon (cilen pjese te fushes e ka zene). Qellimi eshte te kemi qarte cfare eshte TASHME E ZENE ne kete fushe. MOS ekzagjero numrin — jep vetem ato qe mbulojne MJAFTUESHEM fushat kryesore (jo liste te fryre). Per secilin, nje rresht: emri + nichen/pjesen qe mbulon.
-Ktheje si tekst i shkurter, nje biznes/niche per rresht.` }]
-      });
-      biznese = String(r1.output_text || '').slice(0, 4000);
-    } catch(e) { biznese = '(s\'u gjeten)'; }
+      const rp = await pool.query(
+        `SELECT hapesira, metrika3 FROM ide_nendhoje WHERE emri=$1 LIMIT 1`, [nendhojEmri]);
+      if (rp.rows.length && rp.rows[0].hapesira) pershkrimNen = String(rp.rows[0].hapesira);
+    } catch(e) {}
+    if (!pershkrimNen) {
+      try {
+        const rb = await openai.responses.create({
+          model: MODEL_KERKIM,
+          tools: [{ type: 'web_search' }],
+          input: [{ role: 'user', content:
+`Ne 3-6 fjali, shpjego shkurt cfare eshte nen-lloji i biznesit "${nendhojEmri}" dhe cfare pune ben. Vetem shpjegim, pa liste.` }]
+        });
+        pershkrimNen = String(rb.output_text || '').slice(0, 800);
+      } catch(e) { pershkrimNen = nendhojEmri; }
+    }
 
-    // --- Hapi 2: monetizimi ---
-    let monetizim = '';
-    try {
-      const r2 = await openai.responses.create({
-        model: MODEL_MON,
-        tools: [{ type: 'web_search' }],
-        input: [{ role: 'user', content:
-`Nen-lloji: "${nendhojEmri}".
-Fillimisht, kupto QELLIMIN KRYESOR te ketij nen-lloji dhe FUSHEN ku operon.
-Pastaj bej nje kerkim TE MATUR ne internet dhe nxirr te gjitha DHOJET/MENYRAT se si nje KLIENT (biznesi qe do te perdorte nje sherbim te tille) FITON PARA permes kesaj fushe. Pra: cilat jane dhojet e fitimit qe nje klient do te paguaj tek sherbimi im me qellim kthimin e nje fitimi (p.sh. me shume shitje, kliente te rinj, cmim me te larte, ruajtje klientesh, kosto me te ulet qe kthehet ne fitim).
-KJO NUK ka te bej me si faturohet nje sherbim (jo abonim, jo komision) — ka te bej me faktin se disa klient jan em te katshem te paguaj per sherbiem qe ju sjellin para sesa per produtke perdonale . Klienti do te paguaje per nje sherbim VETEM nese ai sherbim i sjell para nga njera prej ketyre rrugeve.
-Ktheje si tekst i shkurter, nje rruge fitimi per rresht.` }]
-      });
-      monetizim = String(r2.output_text || '').slice(0, 4000);
-    } catch(e) { monetizim = '(s\'u gjeten)'; }
+    const gjetjet = [];   // {logjika, kerkimi, vleresim}
+    let ekluar = '';      // majat e meparshme (te zena) qe s'duhen perseritur
 
-    // --- Hapi 3: hapesirat (automatizim + monetizim) ---
-    let pershkrimKryesor = '', vleresimPergj = 0, rreshta = [];
-    try {
-      const r3 = await openai.responses.create({
-        model: MODEL_HAP,
-        tools: [{ type: 'web_search' }],
-        input: [{ role: 'user', content:
+    for (let cikel = 1; cikel <= 2; cikel++) {
+      // ---- LOGJIKA (gpt-5.5, PA web search) — gjen majen sipas logjikes 'mbimurim' ----
+      let ideja = '';
+      try {
+        const rl = await openai.responses.create({
+          model: MODEL_LOGJIKE,
+          input: [{ role: 'user', content:
 `${KUSHTET_IM}
 
 Nen-lloji: "${nendhojEmri}".
+Cfare eshte: ${pershkrimNen}
+${ekluar ? `\nKETO maja jane provuar tashme dhe jane TE ZENA — mos i perserit, mendo nje maje TJETER pak me poshte tyre:\n${ekluar}\n` : ''}
+Detyra: perdor LOGJIKE TE FORTE (jo kerkim ne internet fillimisht) per te gjetur MAJEN (aty ku mund te krijohen biznese te medha dhe jo thjshet sherbime plotesuese per kete dhoj biznesi, pra MAJA nenkupton sherbim mbi sherbiemt qe mund te jen rijuar)  e hapesirave me potencial per nje BIZNES TE MADH brenda kesaj fushe. Mendo sipas VLERES/LOGJIKES — per te gjetur hapsira per niche qe mund te jen nej bizens i madh me te ardhura te larta ne kete kategori qe mudn te jet te ndertosh dika mbi ate qe eshte dnertuar deri tani ne kete dhoj  kategorie dhe qe ka potencial — JO sipas "cfare u mungon bizneseve".
 
-BIZNESET/NICHET reale qe ekzistojne sot (nga kerkimi):
-${biznese}
+Mendimi "MBIMURIM" (ndertim mbi ate qe eshte ndertuar): supozo qe bizneset ekzistuese kane automatizuar tashme gjerat BAZE dhe te PJESSHME te kesaj fushe. Ti mendo nje shkalle ME TE LARTE — automatizimin MBI ATE QE ESHTE NDERTUAR nga qe mund te jet nga fillimi deri en fund i asaj kategorie ose nje pjes e konsiderueshme e asaj kategrorie qe mund te mo jet nxen akoma nga bizenset aktuale te asaj kategorie. P.sh. nese te tjere automatizojne krijimin e reklamave ose pergjigjet ndaj klienteve, ti mendo automatizimin e GJITHE ciklit ose automatizim ne dicka qe ende ata nuk e kan automatizuar.
 
-MENYRAT e MONETIZIMIT qe perdoren sot:
-${monetizim}
+Hapesira duhet:
+- Te jete nje POTENCIAL I MADH per nje apo disa ide biznesi brenda fushes se nen-llojit (jo thjesht nje vegel apo mjet brena asaj kategoie), qe mbulon nje pjese te madhe te asaj kategorie.
+- Te kete potencial per SHUME te ardhura brenda nje kohe te shkurter (kur biznesi te ket shkuar ne piken ku jep frytet nese kerkon koh).
+- Te automatizohet (pervec se ai dhoj biznesi qe ndertoeht aty dueht te jet i automatizueshem ne menaxhim duhet te jet edhe vet sherbimi automatizim per klientin nese ai ben dicka ende me pun manuale edhe nese nuk ankohen por thejsht askush nuk ka pas iden se mund te automatizohet).
+- Te ndertohet nga nje person me mjete si Claude/AI, pa fonde te medha.
+- Biznesi qe mund te ndertohet ne ate hapsir te madhe duhet te jete BRENDA fushes se ketij nen-lloji.
 
-Detyra: gjej HAPESIRAT (boshllëqet) ne DY drejtime. POR SE PARI, kupto QELLIMIN KRYESOR dhe FUSHEN e ketij nen-lloji. Cdo boshllek qe jep DUHET te jete nje KATEGORI/NICHE E MADHE BRENDA kesaj fushe (nje hapesire ku mund te ndertohet nje BIZNES I MADH me potencial), JO nje mjet i vogel qe ndihmon bizneset ekzistuese, JO nje veçori teknike anesore, JO dicka jashte fushes se ketij nen-lloji.
+Jep VETEM majen (hapesiren me potencialin me te larte per kete cikel), si nje pershkrim i qarte i boshllekut. 3-6 fjali. Pa JSON, pa liste — vetem hapesira e logjikuar.` }]
+        });
+        ideja = String(rl.output_text || '').trim().slice(0, 1500);
+      } catch(e) { ideja = ''; }
+      if (!ideja) break;
 
-Dallimi kritik:
-- GABIM (mjet i vogel): "nje vegel qe u kontrollon email-et bizneseve" — kjo eshte nje veçori.
-- GABIM (kategori jasht nen-llojit te biznesit): "dhenia e nje shebulli si niche apo hapsir qe mbulohet nga nje sherbim qe nuk ka lidhje me nen-llojin qe po studjojm" .
-- SAKTE (kategori e madhe): "nje kategori e tere biznesi brenda kesaj fushe qe askush s'e mbulon mire dhe mund te behet platforme e madhe".
+      // ---- KERKIMI (gpt-5.4, ME web search) — a eshte e zene kjo maje? ----
+      let konkurrenca = '', vleresim = 0;
+      try {
+        const rk = await openai.responses.create({
+          model: MODEL_KERKIM,
+          tools: [{ type: 'web_search' }],
+          input: [{ role: 'user', content:
+`${KUSHTET_IM}
 
-1. AUTOMATIZIM: duke marre bizneset ekzistuese me siper, gjej nje BOSHLLEK TE MADH — nje kategori/niche te madhe brenda fushes se ketij nen-lloji qe mund te AUTOMATIZOHET plotesisht dhe qe askush nuk e mbulon si duhet, e tille qe mund te preje nje BIZNES TE MADH (jo nje mjet per bizneset ekzistuese). Boshlleku duhet te jete BRENDA vete fushes se nen-llojit si kategori biznesi,  pra vet biznesi qe ndertoeht ne kete hapsir duhet te jet ne fushen e nen-llojit.
+Hapesira (e logjikuar) qe po verifikojme, brenda fushes "${nendhojEmri}":
+${ideja}
 
-2. VLERE PER KLIENTIN (ku klienti paguan per te fituar): duke marre rruget e fitimit te klientit me siper, gjej nje HAPESIRE TE MADHE ku klienti do te paguante per nje sherbim SEPSE i sjell para me von ose indirekt — nje hapesire qe bizneset aktuale NUK e kane integruar ende ose kan mangesi. Sërish: kategori e madhe brenda fushes, jo mjet i vogel.
-
-NESE brenda ketij nen-lloji NUK ka nje boshllek te madh me potencial per njeren kolone, OSE nen-lloji vete nuk ka lidhje me idene "klienti paguan per te fituar para", ATEHERE mos sajo boshllëqe te medha me force — kthe vetem ato qe gjen realisht (edhe nese jane te dobeta), por GJITHMONE si boshllëqe brenda fushes se nen-llojit (jo si mjete, jo si nen-lloje te tjera). Nese s'ka fare, kthe liste bosh per ate kolone.
-
-RREGULLA:
-- Jep secilen hapesire si BOSHLLEK (cfare mund te mbuloje nje biznes), JO si ide biznesi e gatshme. Vetem boshlleku, i logjikuar sakte.
-- Per secilen hapesire jep nje pershkrim: cfare eshte, dhe cfare NICHE mund te jete (nese e ke te qarte).
-- VERIFIKIM (i detyrueshem per secilen hapesire): bej nje kerkim TE VECANTE ne internet per kete boshllek te madh — a ekziston tashme ndonje biznes/sherbim qe e mbulon kete kategori, qe MUND te mos ishte ne listen e bizneseve te hapit 1? Nese gjen, shkruaj emrin/emrat te fusha "ekziston"; nese s'gjen fare, shkruaj "jo". Kjo tregon sa e zene eshte hapesira ne te vertete. Pra bej kerkim vetem pasi te krahasohet me idet e bizensit te mbledhura ne ate kategroi me qellim gjetjen e ndonje biznesi aktual qe mund t aket mbuluar ate niche dhe qe bizneset qe thirrem nuk e treguan.
-- Vlereso secilen hapesire 1-100 sipas KUSHTEVE TE MIA me siper (potenciali per mua).
-
-Jep gjithashtu:
-- pershkrim_kryesor: nje-dy fjali per gjithe nen-llojin (ku qendron mundesia kryesore).
-- vleresim_pergjithshem: 1-100 per gjithe nen-llojin (sa me shume dhe sa me te larta hapesirat, aq me i larte).
+Detyra:
+1. Bej nje kerkim ne internet: a ekziston tashme ndonje biznes/sherbim qe e MBULON kete hapesire? Jep emrat konkrete qe gjen (nese ka), dhe trego a e mbulojne PLOTESISHT apo vetem pjeserisht.
+2. Jep nje VLERESIM 1-100 sa perputhet kjo hapesire me KUSHTET E MIA me siper per nje biznes me POTENCIAL, duke marre parasysh: (a) MADHESINE e hapesires (sa i madh mund te behet biznesi qe zhvillohet aty), (b) kushtet e mia, (c) KONKURRENCEN qe gjete (sa e zene eshte). Nese eshte plotesisht e zene nga lojtare te medhenj, vleresimi duhet te jete i ulet.
 
 Ktheji VETEM si JSON, pa markdown:
-{"pershkrim_kryesor":"","vleresim_pergjithshem":0,"hapesirat":[{"kolona":"automatizim","pershkrim":"","vleresim":0,"ekziston":""},{"kolona":"monetizim","pershkrim":"","vleresim":0,"ekziston":""}]}` }]
-      });
-      const o = nxjerrObjekt(r3.output_text);
-      pershkrimKryesor = String(o.pershkrim_kryesor||'').slice(0,1500);
-      vleresimPergj = Math.round(Number(o.vleresim_pergjithshem)||0);
-      rreshta = Array.isArray(o.hapesirat) ? o.hapesirat : [];
-    } catch(e) { /* hapi 3 deshtoi */ }
+{"konkurrenca":"","e_zene_plotesisht":true,"vleresim":0}` }]
+        });
+        const o = nxjerrObjekt(rk.output_text);
+        konkurrenca = String(o.konkurrenca||'').slice(0,1500);
+        vleresim = Math.round(Number(o.vleresim)||0);
+        gjetjet.push({ logjika: ideja, kerkimi: konkurrenca, vleresim });
+        // Nese s'eshte e zene plotesisht -> kjo eshte hapesira reale, ndal
+        if (o.e_zene_plotesisht === false) break;
+        // Ndryshe, shenoje si te zene dhe vazhdo te maja tjeter
+        ekluar += `- ${ideja}\n`;
+      } catch(e) {
+        gjetjet.push({ logjika: ideja, kerkimi: '(verifikimi deshtoi)', vleresim: 0 });
+        break;
+      }
+    }
 
     // --- Ruaj ---
+    const vleresimPergj = gjetjet.length ? Math.max(...gjetjet.map(g => g.vleresim||0)) : 0;
     const ins = await pool.query(
       `INSERT INTO hapesira_studim (lloj_emri, nendhoj_emri, pershkrim_kryesor, vleresim_pergjithshem, biznese, monetizim)
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-      [llojEmri, nendhojEmri, pershkrimKryesor, vleresimPergj, biznese.slice(0,4000), monetizim.slice(0,4000)]);
+      [llojEmri, nendhojEmri, pershkrimNen.slice(0,1500), vleresimPergj, '', '']);
     const sid = ins.rows[0].id;
-    for (const h of rreshta) {
+    for (const g of gjetjet) {
       await pool.query(
         `INSERT INTO hapesira_rreshta (studim_id, kolona, pershkrim, vleresim, ekziston)
          VALUES ($1,$2,$3,$4,$5)`,
-        [sid, String(h.kolona||'').slice(0,40), String(h.pershkrim||'').slice(0,2000),
-         Math.round(Number(h.vleresim)||0), String(h.ekziston||'').slice(0,600)]);
+        [sid, 'automatizim', g.logjika.slice(0,2000), Math.round(g.vleresim)||0, (g.kerkimi||'').slice(0,1500)]);
     }
   }
 
