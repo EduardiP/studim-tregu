@@ -169,4 +169,6 @@ const { createAutomatizimetRouter } = require('./automatizimet');
 app.use('/automatizimet', createAutomatizimetRouter(pool));
 const { attachGjetesiRoutes } = require('./gjetesi');
 attachGjetesiRoutes(app, pool, openai);
+const { attachStudimi2Routes } = require('./studimi2');
+attachStudimi2Routes(app, pool, openai);
 app.listen(PORT, () => console.log('Po degjon ne portin', PORT));
