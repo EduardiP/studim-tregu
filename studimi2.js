@@ -32,21 +32,22 @@ LLOJI I BIZNESIT:
 
 POTENCIALI:
 - Fitim i madh + rritje GLOBALE (pa kufij) + hapesire e madhe.
-- Fitim i madh ne kohe te shkurter kur te kete arritur pjekurine.
+- Fitim i madh ne kohe te shkurter kur te kete arritur pjekurine, pra per shembull biznese qe nxjerrin fitimin me te lart mujor.
 
 NDERTIMI DHE MENAXHIMI:
-- I ndertueshem nga NJE person me kod + AI (Claude), me fonde minimale.
-- I automatizueshem: pas ndertimit, S'KA nevoje per mua vazhdimisht — vetem ndonje mirembajtje. Mund te jete edhe nje vegel e thjeshte, jo domosdoshmerisht platforme e madhe.
+- I ndertueshem nga NJE person me kod + AI (Claude) dhe me sherbiem te tjera qe nuk kerkon aftesi, me fonde minimale.
+- I automatizueshem: pas ndertimit, S'KA nevoje per mua vazhdimisht, pervec nese mudnt e kerkoj gjetjen e bizneseve abonent —  dhe vetem ndonje mirembajtje. Mund te jete edhe nje vegel apo sherbim i vecat, jo domosdoshmerisht platforme e madhe.
 
 MONETIZIMI (pa entitet ligjor):
-- Duhet te jete i monetizueshem pa entitet ligjor (Lemon Squeezy / Paddle-friendly): UNE shes sherbimin dhe UNE marr parate. NUK mban parate e te tjereve (jo money transmission), NUK eshte marketplace me pagesa mes palesh, NUK eshte sherbim njerezor (puna ime personale me dore).
-- AI mund te jete VEÇORI (lejohet), por JO gjenerim imazhesh/audio/deepfake si prodhim kryesor.
+- Duhet te jete i monetizueshem pa entitet ligjor (Lemon Squeezy / Paddle-friendly) apo pa kerkuar qe te jem fizkisht ne shab apo  pa kerkuar qe te kem bank amerikane, pra Lemon Queezy eshte nje i till por gjtihahtu edhe per te tjera qe plotesosj keto kushte, mjafton teplotesojnketo kushte : UNE shes sherbimin dhe UNE marr parate. Biznesi  NUK mban parate e te tjereve (jo money transmission), NUK eshte me pagesa mes palesh, NUK eshte sherbim njerezor (puna ime personale me dore).
+- AI mund te jete VEÇORI (lejohet) apo mjet qe kryen funksione ne biznes, por JO si sherbim kryesor kryesor.
 
 MARKETINGU (i sigurt):
-- Duhet te kete nje MARKETPLACE ku sherbimi listohet, qe: (a) me pranon PA entitet ligjor, (b) me lejon te terheq fitimet nga Shqiperia, (c) sjell TRAFIK ORGANIK (kliente te gatshem, pa pasur nevoje te shpenzoj shume per t'i gjetur). OSE nje menyre ku klientet gjenden lehte pa marketing te kushtueshem.
+- Duhet te kete nje MARKETPLACE ku sherbimi listohet, qe: (a) me pranon PA entitet ligjor, (b) me lejon te terheq fitimet nga Shqiperia, (c) sjell TRAFIK ORGANIK (kliente te gatshem, pa pasur nevoje te shpenzoj shume per t'i gjetur). 
+- OSE nje menyre ku klientet gjenden lehte pa marketing te kushtueshem.
 
 SIGURIA (jo supozim):
-- Duhet PROVE reale se funksionon — jo thjesht "ka hapesire". P.sh. ekzistojne konkurrente qe FITOJNE nga dicka e ngjashme (prove se bizneset paguajne), por me DEFEKTE qe une mund t'i permiresoj.
+- Duhet PROVE apo siguri se ideja funksionon — jo thjesht "ka hapesire" dhe ndertimi dhe puna te bazohet mbi fat 100%. P.sh. ekzistojne biznese qe FITOJNE nga dicka e ngjashme (prove se bizneset paguajne).
 
 100 = ploteson maksimalisht te gjitha keto; 1 = shume e dobet.`;
 
@@ -85,7 +86,7 @@ function attachStudimi2Routes(app, pool, openai) {
 
 Detyra (LOGJIKIM I FORTE, pa kerkim ne internet):
 1. Se pari, mendo cilat LLOJE biznesesh (B2B) i pershtaten me se miri TE GJITHA kushteve te mia — sidomos ku bizneset kane nevoje VAZHDIMISHT per sherbimin (abonim qe zgjat shume).
-2. Zgjidh NJE lloj, dhe brenda tij, me logjiken "MBIMURIM", gjej NJE ide te vetme sherbimi/vegle B2B me potencial te larte. MBIMURIM = mos ndertosh dicka qe dikush e ka ndertuar tashme; mendo si duhet te funksionoje biznesi im sipas kushteve, dhe gjej nje hapesire qe ka potencial edhe pse ndoshta askush s'e ka bere ende, OSE dicka ku sherbimet ekzistuese kane DEFEKTE (automatizim i dobet, kosto e larte, vonesa, s'jane permiresuar) qe une mund t'i zgjidh per te qene me unik.
+2. Zgjill lojin me te mir ne baz te kushteve te mia dhe te logjieks tende per te kuptuar cili dhoj apo kategori sherbimi eshte me i miri, gjej NJE ide te vetme sherbimi/vegle B2B me potencial te larte qe mund te ket iden e "Mbimurimit". MBIMURIM = mos ndertosh dicka qe dikush e ka ndertuar tashme; mendo si duhet te funksionoje biznesi im sipas kushteve, dhe gjej nje hapesire qe ka potencial edhe pse ndoshta askush s'e ka bere ende, OSE dicka ku sherbimet ekzistuese kane DEFEKTE (automatizim i dobet, kosto e larte, vonesa, kan defekte en sherbim etje etj) qe une mund t'i zgjidh per te qene me unik.
 ${idete_e_tjera ? `\nMOS propozo keto ide (jane studjuar tashme):\n${idete_e_tjera}\n` : ''}
 Jep NJE ide te vetme, te qarte (5-9 fjali): cfare eshte sherbimi, cilit lloj biznesi i sherben, pse bizneset do te kene nevoje VAZHDIMISHT, si i ploteson kushtet (monetizim pa entitet, marketplace me trafik, ndertim nga nje person, etj.).
 
@@ -111,7 +112,7 @@ Kerkimi gjeti keta konkurrente te vertete dhe DEFEKTET e tyre:
 ${konkurrenca}
 
 Detyra (LOGJIKIM I FORTE, pa kerkim):
-Studio DEFEKTET e konkurrenteve (automatizim i dobet, kosto e larte, vonesa, mungese permiresimi, etj.) dhe MODIFIKO iden time qe te jete me UNIKE — duke zgjidhur ato defekte ose duke mbuluar nje hapesire qe ata s'e mbulojne. Ndrysho disa funksione nese duhet, POR qendro brenda hapesirave me POTENCIAL TE LARTE (jo dicka te vogel pa vlere). Modifikimi duhet te mbetet brenda te gjitha kushteve te mia.
+Studio DEFEKTET e konkurrenteve (automatizim i dobet, kosto e larte, vonesa, mungese permiresimi, etj.) dhe MODIFIKO iden time qe te jete me UNIKE — duke zgjidhur ato defekte ose duke mbuluar nje hapesire qe ata s'e mbulojne ose dhe duke dnryshuar funksionimin e ides per te mbuluar dicka qe nuk e mbuljn ata si funksion biznesi. Pra Ndrysho disa funksione nese duhet, POR qendro brenda hapesirave me POTENCIAL TE LARTE (jo dicka te vogel pa vlere). Modifikimi duhet te mbetet brenda te gjitha kushteve te mia.
 
 Ne fund, thuaj a mbetet HAPESIRE E KONSIDERUESHME per nje biznes te tille pas modifikimit (jo dicka e vogel pa potencial).
 
@@ -137,11 +138,11 @@ Lloji: "${lloji}".
 Ideja qe po verifikojme:
 ${ideja}
 
-Detyra (KERKIM I SHPEJTE — SHUME E RENDESISHME: mos hy thelle, 1-3 kerkime mjaftojne, MOS marr ore):
+Detyra (KERKIM I SHPEJTE — SHUME E RENDESISHME: mos hy thelleper cdo ide te mundhme vetem ato qe mund te mbulojn qart ekte ide timen.):
 1. Gjej VETEM konkurrentet e VERTETE — ata qe bejne PIKERISHT dicka te tille. MOS liso çdo ide te mundshme apo te larget ne treg; vetem lojtaret e verte qe e mbulojne kete ide konkretisht. Nese pas 1-3 kerkimesh s'gjen konkurrent te vertete, ndalo.
-2. Per konkurrentet qe gjen, trego DEFEKTET e tyre nese duken (automatizim i dobet, kosto e larte, vonesa, sherbim i papermiresuar, ankesa perdoruesish) — keto me ndihmojne t'i permiresoj.
+2. Per konkurrentet qe gjen, trego DEFEKTET e tyre nese duken (automatizim i dobet, kosto e larte, vonesa, sherbim i papermiresuar, ankesa perdoruesish, mungesa te tjera per nej sherbim te tille etj etj) — keto me ndihmojne t'i permiresoj.
 3. Cakto forcen e konkurrences: "dobet" (pothuajse s'ka konkurrent te vertete), "mesatare" (ka disa por me defekte/te fragmentuar), "forte" (e mbuluar mire nga lojtare te medhenj).
-4. Jep VLERESIM 1-100 sa i ploteson kjo ide TE GJITHA kushtet e mia (potenciali, B2B me abonim afatgjate, ndertim nga nje person, monetizim pa entitet, marketplace me trafik, prova qe funksionon), duke marre parasysh konkurrencen.
+4. Jep VLERESIM 1-100 sa i ploteson kjo ide TE GJITHA kushtet e mia (potenciali, B2B me abonim afatgjate, kerkes epr te qen te abonuar vazhdimisht, ndertim nga nje person, monetizim pa entitet, marketplace me trafik, prova qe funksionon), duke marre parasysh konkurrencen etj etj.
 
 Ktheji VETEM si JSON, pa markdown:
 {"konkurrenca":"konkurrentet e vertete + defektet e tyre","forca":"dobet|mesatare|forte","vleresim":0}` }]
